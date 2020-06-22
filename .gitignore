@@ -33,3 +33,5 @@ data/
 *.exe
 *.out
 *.app
+
+*.launch~

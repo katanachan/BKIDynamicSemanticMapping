@@ -87,7 +87,7 @@ namespace semantic_bki {
     }
 
     void SemanticBKIOctoMap::insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                                      float free_res, float max_range) {
+                                      float free_res, float max_range, ScanStep create_id) {
 
 #ifdef DEBUG
         Debug_Msg("Insert pointcloud: " << "cloud size: " << cloud.size() << " origin: " << origin);
@@ -129,15 +129,18 @@ namespace semantic_bki {
             BlockHashKey key = blocks[i];
             ExtendedBlock eblock = get_extended_block(key);
             if (has_gp_points_in_bbox(eblock))
+            //if there are points present in the extended block of this block:
 #ifdef OPENMP
 #pragma omp critical
 #endif
             {
                 test_blocks.push_back(key);
+                //store this block for future inference
             };
 
             GPPointCloud block_xy;
             get_gp_points_in_bbox(key, block_xy);
+            //get the point cloud that lies exclusively in this block
             if (block_xy.size() < 1)
                 continue;
 
@@ -147,6 +150,7 @@ namespace semantic_bki {
                 block_x.push_back(it->first.y());
                 block_x.push_back(it->first.z());
                 block_y.push_back(it->second);
+                //process the points contiguously to associate with a label
             
             
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
@@ -154,6 +158,7 @@ namespace semantic_bki {
 
             SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::sf2, SemanticOcTreeNode::ell);
             bgk->train(block_x, block_y);
+            //stores the training points into an Inference instance.
 #ifdef OPENMP
 #pragma omp critical
 #endif
@@ -179,10 +184,13 @@ namespace semantic_bki {
 #endif
             {
                 if (block_arr.find(key) == block_arr.end())
-                    block_arr.emplace(key, new Block(hash_key_to_block(key)));
+                    block_arr.emplace(key, new Block(hash_key_to_block(key), create_id));
+                    //couldn't find a block corresponding to the HashKey
+                    //initialize new Block
             };
             Block *block = block_arr[key];
             vector<float> xs;
+            //obtain all the octree points that exist within the block (unpruned)
             for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it) {
                 point3f p = block->get_loc(leaf_it);
                 xs.push_back(p.x());
@@ -191,7 +199,8 @@ namespace semantic_bki {
             }
             //std::cout << "xs size: "<<xs.size() << std::endl;
 
-	          // For counting sensor model
+	        // For counting sensor model
+            //get training points in the local block
             auto bgk = bgk_arr.find(key);
             if (bgk == bgk_arr.end())
               continue;
@@ -221,8 +230,9 @@ namespace semantic_bki {
     }
 
 
+
     void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                                      float free_res, float max_range) {
+                                      float free_res, float max_range, ScanStep create_id) {
 
 #ifdef DEBUG
         Debug_Msg("Insert pointcloud: " << "cloud size: " << cloud.size() << " origin: " << origin);
@@ -314,7 +324,7 @@ namespace semantic_bki {
 #endif
             {
                 if (block_arr.find(key) == block_arr.end())
-                    block_arr.emplace(key, new Block(hash_key_to_block(key)));
+                    block_arr.emplace(key, new Block(hash_key_to_block(key), create_id));
             };
             Block *block = block_arr[key];
             vector<float> xs;
@@ -575,4 +585,16 @@ namespace semantic_bki {
     SemanticOcTreeNode SemanticBKIOctoMap::search(float x, float y, float z) const {
         return search(point3f(x, y, z));
     }
+
+    void SemanticBKIOctoMap::sync_block(ScanStep scans_done){
+        for (auto it = block_arr.begin(); it != block_arr.end(); ++it) {
+            Block *curr_block = it->second;
+            for (auto leaf_it = curr_block->begin_leaf(); leaf_it != curr_block->end_leaf(); ++leaf_it) {
+                SemanticOcTreeNode &node = leaf_it.get_node();
+                //update the OctreeNode with posterior predictive distribution
+                node.pred_post_update(curr_block->created_at);
+            }
+        }
+    }
+
 }

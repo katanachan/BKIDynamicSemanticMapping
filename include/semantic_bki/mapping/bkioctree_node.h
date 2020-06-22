@@ -9,6 +9,9 @@ namespace semantic_bki {
         FREE, OCCUPIED, UNKNOWN, PRUNED
     };
 
+    ///    // Discrete scan step when octreenode in Block is initialized
+    typedef u_int64_t ScanStep;
+
     /*
      * @brief Inference ouputs and occupancy state.
      *
@@ -42,7 +45,7 @@ namespace semantic_bki {
          * @param ybar kernel density estimate of positive class (occupied)
          * @param kbar kernel density of negative class (unoccupied)
          */
-        void update(std::vector<float>& ybars);
+        void update(const std::vector<float>& ybars);
 
         /// Get probability of occupancy.
         void get_probs(std::vector<float>& probs) const;
@@ -60,10 +63,15 @@ namespace semantic_bki {
 
         bool classified;
 
+        /*
+        * @brief Add x number of observations per semantic category
+        */
+       void pred_post_update(const ScanStep update_number);
+
     private:
-        std::vector<float> ms;
-        State state;
-        int semantics;
+        std::vector<float> ms; // concentration parameters
+        State state; // FREE, OCCUPIED OR UNKNOWN
+        int semantics; // 0 if free
         static int num_class;      // number of classes
         
         static float sf2;

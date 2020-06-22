@@ -17,7 +17,7 @@ namespace semantic_bki {
     void Semantics::get_probs(std::vector<float>& probs) const {
       assert (probs.size() == num_class);
       float sum = 0;
-      for (auto m : ms)
+      for (const auto &m : ms)
         sum += m;
       for (int i = 0; i < num_class; ++i)
         probs[i] = ms[i] / sum;
@@ -26,13 +26,13 @@ namespace semantic_bki {
     void Semantics::get_vars(std::vector<float>& vars) const {
       assert (vars.size() == num_class);
       float sum = 0;
-      for (auto m : ms)
+      for (const auto &m : ms)
         sum += m;
       for (int i = 0; i < num_class; ++i)
         vars[i] = ((ms[i] / sum) - (ms[i] / sum) * (ms[i] / sum)) / (sum + 1);
     }
 
-    void Semantics::update(std::vector<float>& ybars) {
+    void Semantics::update(const std::vector<float>& ybars) {
       assert(ybars.size() == num_class);
       classified = true;
       for (int i = 0; i < num_class; ++i)
@@ -47,5 +47,12 @@ namespace semantic_bki {
         state = State::FREE;
       else
         state = State::OCCUPIED;
+    }
+
+    void Semantics::pred_post_update(const ScanStep update_num){
+      if (classified){
+        for (auto &m: ms)
+          m+=(float)update_num;
+      }
     }
 }

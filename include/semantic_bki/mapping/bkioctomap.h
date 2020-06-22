@@ -14,6 +14,21 @@ namespace semantic_bki {
     typedef pcl::PointXYZL PCLPointType;
     typedef pcl::PointCloud<PCLPointType> PCLPointCloud;
 
+    //PointCloud training helper struct
+    struct PCTrainingParameters{
+        point3f origin;
+        float ds_resolution;
+        float free_resolution;
+        float max_range;
+        ScanStep scan_number;
+        //default constructor - does nothing
+        PCTrainingParameters() {}
+        //custom constructor to load data in
+        PCTrainingParameters(float ds_resolution_in, float free_resolution_in,
+                float max_range_in) : ds_resolution(ds_resolution_in), 
+                free_resolution(free_resolution_in), max_range(max_range_in) {}
+    } PCParams;
+
     /*
      * @brief BGKOctoMap
      *
@@ -80,17 +95,22 @@ namespace semantic_bki {
          */
         void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
                                float free_res = 2.0f,
-                               float max_range = -1);
+                               float max_range = -1, 
+                               ScanStep create_id);
 
 
         void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
                                float free_res = 2.0f,
-                               float max_range = -1);
+                               float max_range = -1,
+                               ScanStep create_id);
 
         //void insert_training_data(const GPPointCloud &cloud);
 
         /// Get bounding box of the map.
         void get_bbox(point3f &lim_min, point3f &lim_max) const;
+
+        // Update SemanticOctree within node with number of scans that have passed
+        void sync_block(ScanStep scans_done);
 
         class RayCaster {
         public:
@@ -322,6 +342,7 @@ namespace semantic_bki {
         Block *search(BlockHashKey key) const;
 
         inline float get_block_size() const { return block_size; }
+
 
     private:
         /// @return true if point is inside a bounding box given min and max limits.
