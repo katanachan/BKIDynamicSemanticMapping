@@ -49,10 +49,10 @@ namespace semantic_bki {
         state = State::OCCUPIED;
     }
 
-    void Semantics::pred_post_update(const ScanStep update_num){
+    void Semantics::pred_post_update(const ScanStep scan_difference){
       if (classified){
         for (auto &m: ms)
-          m+=(float)update_num;
+          m+=(float)scan_difference;
       }
     }
 }

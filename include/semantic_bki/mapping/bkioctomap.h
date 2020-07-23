@@ -4,6 +4,7 @@
 #include <vector>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/common/transforms.h>
 #include "rtree.h"
 #include "bkiblock.h"
 #include "bkioctree_node.h"
@@ -17,9 +18,9 @@ namespace semantic_bki {
     //PointCloud training helper struct
     struct PCTrainingParameters{
         point3f origin;
-        float ds_resolution;
-        float free_resolution;
-        float max_range;
+        double ds_resolution;
+        double free_resolution;
+        double max_range;
         ScanStep scan_number;
         //default constructor - does nothing
         PCTrainingParameters() {}
@@ -27,7 +28,8 @@ namespace semantic_bki {
         PCTrainingParameters(float ds_resolution_in, float free_resolution_in,
                 float max_range_in) : ds_resolution(ds_resolution_in), 
                 free_resolution(free_resolution_in), max_range(max_range_in) {}
-    } PCParams;
+    };
+    typedef PCTrainingParameters PCParams;
 
     /*
      * @brief BGKOctoMap
@@ -96,13 +98,13 @@ namespace semantic_bki {
         void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
                                float free_res = 2.0f,
                                float max_range = -1, 
-                               ScanStep create_id);
+                               ScanStep create_id = 0);
 
 
         void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
                                float free_res = 2.0f,
                                float max_range = -1,
-                               ScanStep create_id);
+                               ScanStep create_id = 0);
 
         //void insert_training_data(const GPPointCloud &cloud);
 
@@ -275,6 +277,9 @@ namespace semantic_bki {
             }
 
             LeafIterator &operator++() {
+                /***
+                 * Goes through every octree node in the block
+                 ***/
                 ++leaf_it;
                 if (leaf_it == end_leaf) {
                     ++block_it;

@@ -6,10 +6,18 @@
 
 void load_pcd(std::string filename, semantic_bki::point3f &origin, semantic_bki::PCLPointCloud &cloud) {
     pcl::PCLPointCloud2 cloud2;
+    semantic_bki::PCLPointCloud rot_cloud;
     Eigen::Vector4f _origin;
-    Eigen::Quaternionf orientaion;
-    pcl::io::loadPCDFile(filename, cloud2, _origin, orientaion);
-    pcl::fromPCLPointCloud2(cloud2, cloud);
+    Eigen::Vector3f _zero_origin = Eigen::Matrix< float, 3, 1 >::Zero();
+    Eigen::Quaternionf orientation;
+    pcl::io::loadPCDFile(filename, cloud2, _origin, orientation);
+    pcl::fromPCLPointCloud2(cloud2, rot_cloud);
+    _zero_origin[0] = _origin[0];
+    _zero_origin[1] = _origin[1];
+    _zero_origin[2] = _origin[2];
+    //orientation = orientation.conjugate();
+    pcl::transformPointCloud(rot_cloud, cloud, _zero_origin, orientation);
+    
     origin.x() = _origin[0];
     origin.y() = _origin[1];
     origin.z() = _origin[2];
@@ -38,7 +46,7 @@ int main(int argc, char **argv) {
     double ds_resolution = 0.1;
     int scan_num = 0;
     double max_range = -1;
-    semantic_bki::PCParams params{0.1, 0.5, -1};
+    semantic_bki::PCParams params = {0.1, 0.5, -1};
 
 
     nh.param<std::string>("dir", dir, dir);
@@ -88,7 +96,7 @@ int main(int argc, char **argv) {
                     max_range, (semantic_bki::ScanStep) scan_id);
         ROS_INFO_STREAM("Scan " << scan_id << " done");
     }
-    map.sync_block((semantic_bki::ScanStep) scan_sum);
+    //map_csm.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     ros::Time end = ros::Time::now(); 
     ROS_INFO_STREAM("Semantic CSM finished in " << (end - start).toSec() << "s");
 
@@ -140,7 +148,7 @@ int main(int argc, char **argv) {
                          max_range, (semantic_bki::ScanStep) scan_id);
         ROS_INFO_STREAM("Scan " << scan_id << " done");
     }
-    map.sync_block((semantic_bki::ScanStep) scan_sum);
+    //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     end = ros::Time::now();
     ROS_INFO_STREAM("Semantic BKI finished in " << (end - start).toSec() << "s");
  
@@ -151,9 +159,10 @@ int main(int argc, char **argv) {
     semantic_bki::MarkerArrayPub m_pub(nh, map_topic, resolution);
     for (auto it = map.begin_leaf(); it != map.end_leaf(); ++it) {
         if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
-            semantic_bki::point3f p = it.get_loc();
-            int semantics = it.get_node().get_semantics();
-            m_pub.insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), semantics, 0);
+            semantic_bki::point3f p = it.get_loc(); //get octree node
+            int semantics = it.get_node().get_semantics(); // get associated semantics
+            m_pub.insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), 
+                            semantics, 0); //data -> marker
             std::vector<float> vars(num_class);
             it.get_node().get_vars(vars);
             if (vars[semantics] > max_var)

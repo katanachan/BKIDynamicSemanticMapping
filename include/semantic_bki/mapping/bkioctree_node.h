@@ -65,8 +65,10 @@ namespace semantic_bki {
 
         /*
         * @brief Add x number of observations per semantic category
+        * @argument ScanStep scan_difference is the number of scans that have
+        * been taken since the first time the OctreeNode was observed
         */
-       void pred_post_update(const ScanStep update_number);
+       void pred_post_update(const ScanStep scan_difference);
 
     private:
         std::vector<float> ms; // concentration parameters

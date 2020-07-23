@@ -142,7 +142,14 @@ add_executable(toy_example_node
   ${MAPPING_SOURCE_FILES}
   ${COMMON_SOURCE_FILES}
   src/toy_example_node.cpp
+ )
+
+add_executable(dynamic_node
+  ${MAPPING_SOURCE_FILES}
+  ${COMMON_SOURCE_FILES}
+  src/dynamic_node.cpp
 )
+
 
 add_executable(kitti_node
   ${MAPPING_SOURCE_FILES}
@@ -164,7 +171,11 @@ add_executable(semantickitti_node
 
 target_link_libraries(toy_example_node
   ${catkin_LIBRARIES}
-)
+  )
+
+target_link_libraries(dynamic_node
+  ${catkin_LIBRARIES}
+ )
 
 target_link_libraries(kitti_node
   ${catkin_LIBRARIES}

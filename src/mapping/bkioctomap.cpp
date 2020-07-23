@@ -592,7 +592,7 @@ namespace semantic_bki {
             for (auto leaf_it = curr_block->begin_leaf(); leaf_it != curr_block->end_leaf(); ++leaf_it) {
                 SemanticOcTreeNode &node = leaf_it.get_node();
                 //update the OctreeNode with posterior predictive distribution
-                node.pred_post_update(curr_block->created_at);
+                node.pred_post_update(scans_done - curr_block->created_at);
             }
         }
     }
