@@ -41,9 +41,13 @@ namespace semantic_bki {
     public:
         /// Types used internally
         typedef std::vector<point3f> PointCloud;
-        typedef std::pair<point3f, float> GPPointType;
+        typedef std::pair<flow3f, float> GPPointType;
+
         typedef std::vector<GPPointType> GPPointCloud;
-        typedef RTree<GPPointType *, float, 3, float> MyRTree;
+        typedef RTree<GPPointType *, float, 3, float> MyRTree; 
+        //format is <data type, elem. type, dim. no., type for computation>
+        //keep number of dimensions as 3
+
 
     public:
         SemanticBKIOctoMap();
@@ -391,7 +395,7 @@ namespace semantic_bki {
         void downsample(const PCLPointCloud &in, PCLPointCloud &out, float ds_resolution) const;
 
         /// Sample free training points along sensor beams.
-        void beam_sample(const point3f &hits, const point3f &origin, PointCloud &frees,
+        void beam_sample(const flow3f &hits, const point3f &origin, PointCloud &frees,
                          float free_resolution) const;
 
         /// Get training data from one sensor scan.

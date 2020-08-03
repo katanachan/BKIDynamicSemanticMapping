@@ -134,6 +134,7 @@ include_directories(
 # Common source files
 set(COMMON_SOURCE_FILES 
     src/common/point3f
+    #src/common/flow3f
     src/common/flow_point_types)
 
 # Files for SEMANTIC BGK source

@@ -106,10 +106,10 @@ namespace semantic_bki {
         }
 
         point3f lim_min, lim_max;
-        bbox(xy, lim_min, lim_max);
+        bbox(xy, lim_min, lim_max); //6D point here
 
         vector<BlockHashKey> blocks;
-        get_blocks_in_bbox(lim_min, lim_max, blocks);
+        get_blocks_in_bbox(lim_min, lim_max, blocks); //gives keys to blocks
 
         for (auto it = xy.cbegin(); it != xy.cend(); ++it) {
             float p[] = {it->first.x(), it->first.y(), it->first.z()};
@@ -137,7 +137,7 @@ namespace semantic_bki {
                 //store this block for future inference
             };
 
-            GPPointCloud block_xy;
+            GPPointCloud block_xy; // a 6D point cloud with an attached label
             get_gp_points_in_bbox(key, block_xy);
             //get the point cloud that lies exclusively in this block
             if (block_xy.size() < 1)
@@ -150,7 +150,8 @@ namespace semantic_bki {
                 block_x.push_back(it->first.z());
                 block_y.push_back(it->second);
                 //process the points contiguously to associate with a label
-            
+            //Shwarya TODO: Store the velocities somehow in bgk_arr as well?
+            //Because these are the flows associated with those points anyway
             
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
@@ -186,6 +187,7 @@ namespace semantic_bki {
                     block_arr.emplace(key, new Block(hash_key_to_block(key), create_id));
                     //couldn't find a block corresponding to the HashKey
                     //initialize new Block
+                    //create_id can be useful in the future for time difference
             };
             Block *block = block_arr[key];
             vector<float> xs;
@@ -213,6 +215,8 @@ namespace semantic_bki {
 
                 // Only need to update if kernel density total kernel density est > 0
                 node.update(ybars[j]);
+                //Note: Shwarya : only potential place to update velocities or 
+                // "store" any type of parameters.
             }
 
         }
@@ -365,20 +369,21 @@ namespace semantic_bki {
         rtree.RemoveAll();
     }
 
-    void SemanticBKIOctoMap::get_bbox(point3f &lim_min, point3f &lim_max) const {
-        lim_min = point3f(0, 0, 0);
-        lim_max = point3f(0, 0, 0);
+    // void SemanticBKIOctoMap::get_bbox(point3f &lim_min, point3f &lim_max) const {
+    //     lim_min = point3f(0, 0, 0);
+    //     lim_max = point3f(0, 0, 0);
 
-        GPPointCloud centers;
-        for (auto it = block_arr.cbegin(); it != block_arr.cend(); ++it) {
-            centers.emplace_back(it->second->get_center(), 1);
-        }
-        if (centers.size() > 0) {
-            bbox(centers, lim_min, lim_max);
-            lim_min -= point3f(block_size, block_size, block_size) * 0.5;
-            lim_max += point3f(block_size, block_size, block_size) * 0.5;
-        }
-    }
+    //     GPPointCloud centers;
+    //     for (auto it = block_arr.cbegin(); it != block_arr.cend(); ++it) {
+    //         //block_arr iterator is going to return a pair.
+    //         centers.emplace_back(it->second->get_center(), 1);
+    //     }
+    //     if (centers.size() > 0) {
+    //         bbox(centers, lim_min, lim_max);
+    //         lim_min -= point3f(block_size, block_size, block_size) * 0.5;
+    //         lim_max += point3f(block_size, block_size, block_size) * 0.5;
+    //     }
+    // }
 
     void SemanticBKIOctoMap::get_training_data(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
                                       float free_resolution, float max_range, GPPointCloud &xy) const {
@@ -390,9 +395,9 @@ namespace semantic_bki {
         frees.width = 0;
         xy.clear();
         for (auto it = sampled_hits.begin(); it != sampled_hits.end(); ++it) {
-            point3f p(it->x, it->y, it->z);
+            flow3f p(it->x, it->y, it->z, it->vx, it->vy, it->vz);
             if (max_range > 0) {
-                double l = (p - origin).norm();
+                double l = (p.point() - origin).norm();
                 if (l > max_range)
                     continue;
             }
@@ -429,7 +434,7 @@ namespace semantic_bki {
         //frees are also passed into xy
 
         for (auto it = sampled_frees.begin(); it != sampled_frees.end(); ++it) {
-            xy.emplace_back(point3f(it->x, it->y, it->z), 0.0f);
+            xy.emplace_back(flow3f(it->x, it->y, it->z, 0.0, 0.0, 0.0), 0.0f);
         }
     }
 
@@ -447,7 +452,7 @@ namespace semantic_bki {
         sor.filter(out);
     }
 
-    void SemanticBKIOctoMap::beam_sample(const point3f &hit, const point3f &origin, PointCloud &frees,
+    void SemanticBKIOctoMap::beam_sample(const flow3f &hit, const point3f &origin, PointCloud &frees,
                                 float free_resolution) const {
         frees.clear();
 

@@ -4,6 +4,7 @@
 #include <array>
 
 #include "point3f.h"
+#include "flow3f.h"
 #include "bkioctree_node.h"
 #include "bkioctree.h"
 
