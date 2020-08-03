@@ -8,6 +8,7 @@
 #include "bkiblock.h"
 #include "bkioctree_node.h"
 #include "flow_point_types.h"
+
 namespace semantic_bki {
 
     //PointCloud training helper struct
@@ -34,6 +35,8 @@ namespace semantic_bki {
      * depth are rooted. Occupancy values in one Block is predicted by 
      * its ExtendedBlock via Bayesian generalized kernel inference.
      */
+
+
     class SemanticBKIOctoMap {
     public:
         /// Types used internally

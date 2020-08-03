@@ -397,7 +397,8 @@ namespace semantic_bki {
                     continue;
             }
             
-            xy.emplace_back(p, it->label);
+            xy.emplace_back(p, it->label); //don't recommend modifying
+            //xy because it is fed into the RTree for spatial partitioning
 
             //frees need not have a velocity associated with them
 
@@ -424,6 +425,8 @@ namespace semantic_bki {
 
         PCLPointCloud sampled_frees;    
         downsample(frees, sampled_frees, ds_resolution);
+
+        //frees are also passed into xy
 
         for (auto it = sampled_frees.begin(); it != sampled_frees.end(); ++it) {
             xy.emplace_back(point3f(it->x, it->y, it->z), 0.0f);

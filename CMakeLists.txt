@@ -144,11 +144,11 @@ set(MAPPING_SOURCE_FILES
     src/mapping/bkioctree.cpp)
 
 
-add_executable(toy_example_node
-  ${MAPPING_SOURCE_FILES}
-  ${COMMON_SOURCE_FILES}
-  src/toy_example_node.cpp
- )
+#add_executable(toy_example_node
+#  ${MAPPING_SOURCE_FILES}
+#  ${COMMON_SOURCE_FILES}
+#  src/toy_example_node.cpp
+# )
 
 add_executable(dynamic_node
   ${MAPPING_SOURCE_FILES}
@@ -157,17 +157,17 @@ add_executable(dynamic_node
 )
 
 
-add_executable(kitti_node
-  ${MAPPING_SOURCE_FILES}
-  ${COMMON_SOURCE_FILES}
-  src/kitti_node.cpp
-)
+# add_executable(kitti_node
+#  ${MAPPING_SOURCE_FILES}
+#  ${COMMON_SOURCE_FILES}
+#  src/kitti_node.cpp
+#)
 
-add_executable(semantickitti_node
-  ${MAPPING_SOURCE_FILES}
-  ${COMMON_SOURCE_FILES}
-  src/semantickitti_node.cpp
-)
+#add_executable(semantickitti_node
+#  ${MAPPING_SOURCE_FILES}
+#  ${COMMON_SOURCE_FILES}
+#  src/semantickitti_node.cpp
+#)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -175,23 +175,26 @@ add_executable(semantickitti_node
 
 ## Specify libraries to link a library or executable target against
 
-target_link_libraries(toy_example_node
-  ${catkin_LIBRARIES}
-  )
-
+#target_link_libraries(toy_example_node
+#  ${catkin_LIBRARIES}
+#  )
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 target_link_libraries(dynamic_node
-  ${catkin_LIBRARIES} 
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
  )
 
-target_link_libraries(kitti_node
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
+#target_link_libraries(kitti_node
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
 
-target_link_libraries(semantickitti_node
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
+#target_link_libraries(semantickitti_node
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
 
 #############
 ## Install ##
