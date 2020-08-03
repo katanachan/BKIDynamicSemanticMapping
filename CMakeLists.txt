@@ -4,6 +4,8 @@ project(semantic_bki)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -o3")
 
 find_package(OpenMP)
+find_package(PCL 1.2 REQUIRED)
+
 if (OPENMP_FOUND)
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -120,6 +122,8 @@ include_directories(
   include/semantic_bki/dataset_devkit
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+
 )
 
 ## Declare a cpp library
@@ -128,7 +132,9 @@ include_directories(
 # )
 
 # Common source files
-set(COMMON_SOURCE_FILES src/common/point3f)
+set(COMMON_SOURCE_FILES 
+    src/common/point3f
+    src/common/flow_point_types)
 
 # Files for SEMANTIC BGK source
 set(MAPPING_SOURCE_FILES
@@ -174,7 +180,7 @@ target_link_libraries(toy_example_node
   )
 
 target_link_libraries(dynamic_node
-  ${catkin_LIBRARIES}
+  ${catkin_LIBRARIES} 
  )
 
 target_link_libraries(kitti_node

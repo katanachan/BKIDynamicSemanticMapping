@@ -2,18 +2,13 @@
 
 #include <unordered_map>
 #include <vector>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/common/transforms.h>
+
+
 #include "rtree.h"
 #include "bkiblock.h"
 #include "bkioctree_node.h"
-
+#include "flow_point_types.h"
 namespace semantic_bki {
-
-    /// PCL PointCloud types as input
-    typedef pcl::PointXYZL PCLPointType;
-    typedef pcl::PointCloud<PCLPointType> PCLPointCloud;
 
     //PointCloud training helper struct
     struct PCTrainingParameters{

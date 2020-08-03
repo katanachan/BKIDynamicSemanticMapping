@@ -1,0 +1,12 @@
+#include "flow_point_types.h"
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::MyPointType,           // here we assume a XYZ + "test" (as fields)
+                                   (float, x, x)
+                                   (float, y, y)
+                                   (float, z, z)
+                                   (float, vx, vx)
+				   (float, vy, vy)
+				   (float, vz, vz)
+    )
+     typedef pcl::PointCloud<semantic_bki::MyPointType> PC;
+

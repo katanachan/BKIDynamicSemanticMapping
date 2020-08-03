@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <pcl/filters/voxel_grid.h>
 
 #include "bkioctomap.h"
 #include "bki.h"
@@ -399,6 +398,8 @@ namespace semantic_bki {
             }
             
             xy.emplace_back(p, it->label);
+
+            //frees need not have a velocity associated with them
 
             PointCloud frees_n;
             beam_sample(p, origin, frees_n, free_resolution);
