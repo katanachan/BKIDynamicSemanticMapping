@@ -23,9 +23,23 @@ namespace semantic_bki {
                                         1.0, // sf2
                                         1.0, // ell
                                         1.0f, // prior
+                                        0.2, //flow_sf2
+                                        0.2, //flow_ell
                                         1.0f, // var_thresh
                                         0.3f, // free_thresh
                                         0.7f // occupied_thresh
+                                    ) { }
+    SemanticBKIOctoMap::SemanticBKIOctoMap(MapParams *params) : SemanticBKIOctoMap(params->resolution, // resolution
+                                        params->block_depth,
+                                        params->num_classes,
+                                        params->sf2, // sf2
+                                        params->ell, // ell
+                                        params->prior, // prior
+                                        params->flow_sf2,
+                                        params->flow_ell,
+                                        params->var_thresh, // var_thresh
+                                        params->free_thresh,
+                                        params->occupied_thresh // occupied_thresh
                                     ) { }
 
     SemanticBKIOctoMap::SemanticBKIOctoMap(float resolution,
@@ -34,6 +48,8 @@ namespace semantic_bki {
                         float sf2,
                         float ell,
                         float prior,
+                        float flow_sf2,
+                        float flow_ell,
                         float var_thresh,
                         float free_thresh,
                         float occupied_thresh)
@@ -53,9 +69,11 @@ namespace semantic_bki {
         SemanticOcTree::max_depth = block_depth;
 
         SemanticOcTreeNode::num_class = num_class;
-        SemanticOcTreeNode::sf2 = sf2;
-        SemanticOcTreeNode::ell = ell;
+        SemanticOcTreeNode::kp.sf2 = sf2;
+        SemanticOcTreeNode::kp.ell = ell;
         SemanticOcTreeNode::prior = prior;
+        SemanticOcTreeNode::kp.flow_sf2 = flow_sf2;
+        SemanticOcTreeNode::kp.flow_ell = flow_ell;
         SemanticOcTreeNode::var_thresh = var_thresh;
         SemanticOcTreeNode::free_thresh = free_thresh;
         SemanticOcTreeNode::occupied_thresh = occupied_thresh;
@@ -143,11 +161,14 @@ namespace semantic_bki {
             if (block_xy.size() < 1)
                 continue;
 
-            vector<float> block_x, block_y;
+            vector<float> block_x, block_v, block_y;
             for (auto it = block_xy.cbegin(); it != block_xy.cend(); ++it) {
                 block_x.push_back(it->first.x());
                 block_x.push_back(it->first.y());
                 block_x.push_back(it->first.z());
+                block_v.push_back(it->first.flow_norm());
+                //block_v.push_back(it->first.vy());
+                //block_v.push_back(it->first.vz());
                 block_y.push_back(it->second);
                 //process the points contiguously to associate with a label
             //Shwarya TODO: Store the velocities somehow in bgk_arr as well?
@@ -156,9 +177,10 @@ namespace semantic_bki {
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::sf2, SemanticOcTreeNode::ell);
+            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::kp);
             bgk->train(block_x, block_y);
             //stores the training points into an Inference instance.
+            bgk->store_flow(block_v);
 #ifdef OPENMP
 #pragma omp critical
 #endif
@@ -206,15 +228,15 @@ namespace semantic_bki {
             if (bgk == bgk_arr.end())
               continue;
 
-            vector<vector<float>> ybars;
-            bgk->second->predict_csm(xs, ybars);
+            vector<vector<float>> ybars, vbars;
+            bgk->second->predict_csm(xs, ybars, vbars);
 
             int j = 0;
             for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it, ++j) {
                 SemanticOcTreeNode &node = leaf_it.get_node();
 
                 // Only need to update if kernel density total kernel density est > 0
-                node.update(ybars[j]);
+                node.update(ybars[j], vbars[j]);
                 //Note: Shwarya : only potential place to update velocities or 
                 // "store" any type of parameters.
             }
@@ -289,19 +311,21 @@ namespace semantic_bki {
             if (block_xy.size() < 1)
                 continue;
 
-            vector<float> block_x, block_y;
+            vector<float> block_x, block_v, block_y;
             for (auto it = block_xy.cbegin(); it != block_xy.cend(); ++it) {
                 block_x.push_back(it->first.x());
                 block_x.push_back(it->first.y());
                 block_x.push_back(it->first.z());
-                block_y.push_back(it->second);
+                block_v.push_back(it->first.flow_norm());
+                block_y.push_back(it->second); //label
             
             
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::sf2, SemanticOcTreeNode::ell);
+            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::kp);
             bgk->train(block_x, block_y);
+            bgk->store_flow(block_v);
 #ifdef OPENMP
 #pragma omp critical
 #endif
@@ -345,15 +369,15 @@ namespace semantic_bki {
                 if (bgk == bgk_arr.end())
                     continue;
 
-               	vector<vector<float>> ybars;
-		            bgk->second->predict(xs, ybars);
+               	vector<vector<float>> ybars, vbars;
+		            bgk->second->predict(xs, ybars, vbars);
 
                 int j = 0;
                 for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it, ++j) {
                     SemanticOcTreeNode &node = leaf_it.get_node();
                     // Only need to update if kernel density total kernel density est > 0
                     //if (kbar[j] > 0.0)
-                    node.update(ybars[j]);
+                    node.update(ybars[j], vbars[j]);
                 }
             }
         }

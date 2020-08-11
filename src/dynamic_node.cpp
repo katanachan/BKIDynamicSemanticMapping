@@ -6,25 +6,68 @@
 #include "markerarray_pub.h"
 
 
-void load_pcd(std::string filename, semantic_bki::point3f &origin,
+static void load_pcd(std::string filename, semantic_bki::point3f &origin,
                  semantic_bki::PCLPointCloud &cloud) {
     pcl::PCLPointCloud2 cloud2;
-    semantic_bki::PCLPointCloud rot_cloud;
+    //semantic_bki::PCLPointCloud rot_cloud;
     Eigen::Vector4f _origin;
-    Eigen::Vector3f _zero_origin = Eigen::Matrix< float, 3, 1 >::Zero();
+    //Eigen::Vector3f _zero_origin = Eigen::Matrix< float, 3, 1 >::Zero();
     Eigen::Quaternionf orientation;
     pcl::io::loadPCDFile(filename, cloud2, _origin, orientation);
-    pcl::fromPCLPointCloud2(cloud2, rot_cloud);
-    _zero_origin[0] = _origin[0];
-    _zero_origin[1] = _origin[1];
-    _zero_origin[2] = _origin[2];
+    pcl::fromPCLPointCloud2(cloud2, cloud);
+    // _zero_origin[0] = _origin[0];
+    // _zero_origin[1] = _origin[1];
+    // _zero_origin[2] = _origin[2];
     //orientation = orientation.conjugate();
-    pcl::transformPointCloud(rot_cloud, cloud, _zero_origin, orientation);
+    //pcl::transformPointCloud(rot_cloud, cloud, _zero_origin, orientation);
     
     origin.x() = _origin[0];
     origin.y() = _origin[1];
     origin.z() = _origin[2];
 }
+
+static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen::Quaternionf &orientation,
+                 semantic_bki::PCLPointCloud &cloud) {
+    pcl::PCLPointCloud2 cloud2;
+    //semantic_bki::PCLPointCloud rot_cloud;
+    Eigen::Vector4f _origin;
+    //Eigen::Vector3f _zero_origin = Eigen::Matrix< float, 3, 1 >::Zero();
+    pcl::io::loadPCDFile(filename, cloud2, _origin, orientation);
+    pcl::fromPCLPointCloud2(cloud2, cloud);
+    // _zero_origin[0] = _origin[0];
+    // _zero_origin[1] = _origin[1];
+    // _zero_origin[2] = _origin[2];
+    //orientation = orientation.conjugate();
+    //pcl::transformPointCloud(rot_cloud, cloud, _zero_origin, orientation);
+    
+    origin.x() = _origin[0];
+    origin.y() = _origin[1];
+    origin.z() = _origin[2];
+}
+
+    /*
+    *\brief Check if the flow computation is valid between scans ie.
+    * if the viewpoint has shifted beyond a threshold, discard the reading.
+    * @ param origin_prev : robot's position in the previous scan
+    * @ param origin_now : robot's position in the current scan
+    */
+    static bool is_data_valid(const semantic_bki::point3f &origin_prev, 
+                    const semantic_bki::point3f &origin_now){
+            if ((origin_prev - origin_now).norm() > 0.5)
+                return false;
+            else
+                return true;
+    }
+
+    static bool is_rotation_valid(const Eigen::Quaternionf &prev,
+                const Eigen::Quaternionf &next){
+            std::cout << prev.angularDistance(next) << std::endl;
+            if (prev.angularDistance(next) > 0.05 ) // 2.86 deg tolerance
+                return false;
+            else
+                return true;
+
+    }
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamic_node");
@@ -39,6 +82,8 @@ int main(int argc, char **argv) {
     int block_depth = 4;
     double sf2 = 1.0;
     double ell = 1.0;
+    float flow_sf2 = 0.2;
+    float flow_ell = 0.2;
     float prior = 1.0f;
     float var_thresh = 1.0f;
     double free_thresh = 0.3;
@@ -50,6 +95,13 @@ int main(int argc, char **argv) {
     int scan_num = 0;
     double max_range = -1;
     semantic_bki::PCParams params = {0.1, 0.5, -1};
+    semantic_bki::MapParams *mparams = new semantic_bki::MapParams{0.1, 4, 2, //resolution, block_depth, num_classes 
+                                    1.0, 1.0, 1.0f, //sf2, ell, prior 
+
+                                    0.2, 0.2, // flow_sf2, flow_ell
+
+                                    1.0f, 0.3, 0.7 //var_thresh, free_thresh, occupied_thresh
+                                    };
 
 
     nh.param<std::string>("dir", dir, dir);
@@ -57,6 +109,8 @@ int main(int argc, char **argv) {
     nh.param<int>("block_depth", block_depth, block_depth);
     nh.param<double>("sf2", sf2, sf2);
     nh.param<double>("ell", ell, ell);
+    nh.param<float>("flow_sf2", flow_sf2, flow_sf2);
+    nh.param<float>("flow_ell", flow_ell, flow_ell);
     nh.param<float>("prior", prior, prior);
     nh.param<float>("var_thresh", var_thresh, var_thresh);
     nh.param<double>("free_thresh", free_thresh, free_thresh);
@@ -88,16 +142,30 @@ int main(int argc, char **argv) {
 
     /////////////////////// Semantic CSM //////////////////////
     semantic_bki::SemanticBKIOctoMap map_csm(resolution, 1, num_class, 
-                sf2, ell, prior, var_thresh, free_thresh, occupied_thresh); //vanilla map
+                sf2, ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh); //vanilla map
     ros::Time start = ros::Time::now();
-    for (int scan_id = 1; scan_id <= scan_num; ++scan_id) {
+    semantic_bki::point3f origin_prev;
+    semantic_bki::PCLPointCloud cloud_prev;
+    Eigen::Quaternionf rot_prev;
+    std::string filename(dir + "/" + prefix + "_1.pcd");
+    load_pcd(filename, origin_prev, rot_prev, cloud_prev);
+    for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
         semantic_bki::PCLPointCloud cloud;
         semantic_bki::point3f origin;
+        Eigen::Quaternionf rot;
         std::string filename(dir + "/" + prefix + "_" + std::to_string(scan_id) + ".pcd");
-        load_pcd(filename, origin, cloud);
-        map_csm.insert_pointcloud_csm(cloud, origin, resolution, free_resolution, 
+        load_pcd(filename, origin, rot, cloud); // loaded the next point cloud
+        if (is_data_valid(origin, origin_prev) & is_rotation_valid(rot, rot_prev )){
+            map_csm.insert_pointcloud_csm(cloud_prev, origin_prev, resolution, free_resolution, 
                     max_range, (semantic_bki::ScanStep) scan_id);
-        ROS_INFO_STREAM("Scan " << scan_id << " done");
+            ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
+        }
+        else{
+            ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
+        }
+	    origin_prev = origin;
+        cloud_prev = cloud; //transfer loaded cloud as previous cloud to be inserted in later
+        rot_prev = rot;
     }
     //map_csm.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     ros::Time end = ros::Time::now(); 
@@ -140,16 +208,29 @@ int main(int argc, char **argv) {
     
     /////////////////////// Semantic BKI //////////////////////
     semantic_bki::SemanticBKIOctoMap map(resolution, block_depth, num_class, sf2,
-                 ell, prior, var_thresh, free_thresh, occupied_thresh); //inferred map
+                 ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh); //inferred map
     start = ros::Time::now();
-    for (int scan_id = 1; scan_id <= scan_num; ++scan_id) {
+    semantic_bki::point3f prev_origin_bki;
+    semantic_bki::PCLPointCloud prev_cloud_bki;
+    Eigen::Quaternionf prev_rot_bki;
+    std::string prev_filename(dir + "/" + prefix + "_1.pcd");
+    load_pcd(prev_filename, prev_origin_bki, prev_rot_bki, prev_cloud_bki);
+    for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
         semantic_bki::PCLPointCloud cloud;
         semantic_bki::point3f origin;
+        Eigen::Quaternionf rot;
         std::string filename(dir + "/" + prefix + "_" + std::to_string(scan_id) + ".pcd");
-        load_pcd(filename, origin, cloud);
-        map.insert_pointcloud(cloud, origin, resolution, free_resolution,
+        load_pcd(filename, origin, rot, cloud);
+        if (is_rotation_valid(rot, prev_rot_bki) && is_data_valid(origin, prev_origin_bki)){
+            map.insert_pointcloud(prev_cloud_bki, prev_origin_bki, resolution, free_resolution,
                          max_range, (semantic_bki::ScanStep) scan_id);
-        ROS_INFO_STREAM("Scan " << scan_id << " done");
+            ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
+        }
+        else
+            ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
+	    prev_origin_bki = origin;
+        prev_cloud_bki = cloud; //transfer loaded cloud as previous cloud to be inserted in later
+        prev_rot_bki = rot;
     }
     //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     end = ros::Time::now();
@@ -190,6 +271,8 @@ int main(int argc, char **argv) {
         }
     }
     v_pub.publish();
+
+    delete mparams;
 
     ros::spin();
 

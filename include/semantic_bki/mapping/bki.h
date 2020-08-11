@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bkioctomap.h"
-
+#define PI 3.1415926f
 namespace semantic_bki {
 
 	/*
@@ -19,7 +19,9 @@ namespace semantic_bki {
         using MatrixDKType = Eigen::Matrix<T, -1, 1>;
         using MatrixYType = Eigen::Matrix<T, -1, 1>;
 
-        SemanticBKInference(int nc, T sf2, T ell) : nc(nc), sf2(sf2), ell(ell), trained(false) { }
+        SemanticBKInference(int nc, KernelParams &params) : nc(nc), sf2(params.sf2), 
+                            ell(params.ell), flow_ell(params.flow_ell),
+                            trained(false) { }
 
         /*
          * @brief Fit BGK Model
@@ -44,63 +46,106 @@ namespace semantic_bki {
             this->y = MatrixYType(y);
             trained = true;
         }
+        /*
+        * \brief A function to store flow for each training point
+        *  @param v: flow matrix (1 * N)
+        */
 
+        void store_flow(const std::vector<T> &v){
+            this->v = Eigen::Map<const MatrixYType> (v.data(), v.size() , 1);
+            //stored as Nx1 matrix
+        }
        
-      void predict(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars) {
+      void predict(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
+                    std::vector<std::vector<T>> &vbars) {
           assert(xs.size() % dim == 0);
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
           assert(trained == true);
-          MatrixKType Ks;
+          MatrixKType Ks, Kv;
 
           covSparse(_xs, x, Ks);
-          
-          ybars.resize(_xs.rows());
-          for (int r = 0; r < _xs.rows(); ++r)
-            ybars[r].resize(nc);
+          //Shwarya : TODO you can do the same and compute a velocity covariance
+          // here and simply multiply the velocities
+          // voxel centroids vs training points
+          covMaterniso3(_xs, x, Kv);
+          //covCountingSensorModel(_xs, x, Kv);
+          //covGaussian(_xs, x, Kv);
+          vbars.resize(_xs.rows());
 
-            MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
-            for (int k = 0; k < nc; ++k) {
+          ybars.resize(_xs.rows());
+
+          for (int r = 0; r < _xs.rows(); ++r){
+            ybars[r].resize(nc);
+            vbars[r].resize(nc);
+          }
+
+          MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
+          MatrixYType _v_vec = Eigen::Map<const MatrixYType>(v.data(), v.size(), 1);
+          for (int k = 0; k < nc; ++k) {
               for (int i = 0; i < y_vec.size(); ++i) {
-                if (y_vec[i] == k)
+                if (y_vec[i] == k){
                   _y_vec(i, 0) = 1;
-                else
+                  _v_vec(i, 0) = v(i, 0);
+                }
+                else{
                   _y_vec(i, 0) = 0;
+                  _v_vec(i, 0) = 0;
+                }
               }
             
-            MatrixYType _ybar;
-            _ybar = (Ks * _y_vec);
+              MatrixYType _ybar, _vbar;
+              _ybar = (Ks * _y_vec);
+              _vbar = (Kv * _v_vec);
             
-            for (int r = 0; r < _ybar.rows(); ++r)
-              ybars[r][k] = _ybar(r, 0);
+              for (int r = 0; r < _ybar.rows(); ++r){
+                ybars[r][k] = _ybar(r, 0);
+                vbars[r][k] = _vbar(r, 0);// / _y_vec.sum(); // compute the average velocity around that area
+
+              }
+
+              
           }
       }
 
-      void predict_csm(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars) {
+      void predict_csm(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
+                        std::vector<std::vector<T>> &vbars) {
           assert(xs.size() % dim == 0);
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
           assert(trained == true);
           MatrixKType Ks;
 
-          covCountingSensorModel(_xs, x, Ks);
-          
+          covCountingSensorModel(_xs, x, Ks); // gives a (No. of Voxels x Training Points)
+          vbars.resize(_xs.rows());
           ybars.resize(_xs.rows());
-          for (int r = 0; r < _xs.rows(); ++r)
+
+          for (int r = 0; r < _xs.rows(); ++r){
             ybars[r].resize(nc);
+            vbars[r].resize(nc);
+          }
 
             MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
+            MatrixYType _v_vec = Eigen::Map<const MatrixYType>(v.data(), v.size(), 1);
+
             for (int k = 0; k < nc; ++k) {
               for (int i = 0; i < y_vec.size(); ++i) {
-                if (y_vec[i] == k)
+                if (y_vec[i] == k){
                   _y_vec(i, 0) = 1;
-                else
+                  _v_vec(i, 0) = v(i, 0); //what is this supposed to mean?!?!
+                }
+                else{
                   _y_vec(i, 0) = 0;
+                  _v_vec(i, 0) = 0;
+                }
               }
             
-            MatrixYType _ybar;
+            MatrixYType _ybar, _vbar;
             _ybar = (Ks * _y_vec);
+            _vbar = (Ks * _v_vec);
             
-            for (int r = 0; r < _ybar.rows(); ++r)
+            for (int r = 0; r < _ybar.rows(); ++r){
               ybars[r][k] = _ybar(r, 0);
+              vbars[r][k] = _vbar(r, 0);
+            }
           }
       }
 
@@ -131,6 +176,17 @@ namespace semantic_bki {
         }
 
         /*
+         * \brief Gaussian kernel.
+         * @param x input vector
+         * @param z input vector
+         * @return Kxz covariance matrix
+         */
+        void covGaussian(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz) const {
+            dist(x, z, Kxz);
+            Kxz = exp((1 / (sf2*sf2)) * -Kxz.array().pow(2)).matrix();
+        }
+
+        /*
          * @brief Sparse kernel.
          * @param x input vector
          * @param z input vector
@@ -156,12 +212,17 @@ namespace semantic_bki {
           Kxz = MatrixKType::Ones(x.rows(), z.rows());
         }
 
+        T flow_sf2;
+        T flow_ell;
+
+
         T sf2;    // signal variance
         T ell;    // length-scale
         int nc;   // number of classes
 
         MatrixXType x;   // temporary storage of training data
         MatrixYType y;   // temporary storage of training labels
+        MatrixYType v; // temporary storage for flow of training data
         std::vector<T> y_vec;
 
         bool trained;    // true if bgkinference stored training data

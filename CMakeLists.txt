@@ -134,7 +134,6 @@ include_directories(
 # Common source files
 set(COMMON_SOURCE_FILES 
     src/common/point3f
-    #src/common/flow3f
     src/common/flow_point_types)
 
 # Files for SEMANTIC BGK source
@@ -237,10 +236,10 @@ target_link_libraries(dynamic_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_BGKOctoMap.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
+catkin_add_gtest(${PROJECT_NAME}-test src/common/t_flow3f.cpp)
+#if(TARGET ${PROJECT_NAME}-test)
+#  target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
+#endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)

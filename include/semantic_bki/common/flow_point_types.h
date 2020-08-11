@@ -10,10 +10,6 @@
 #include <pcl/io/pcd_io.h>
 
 namespace semantic_bki{
-    // PCL PointCloud types as input
-    //typedef pcl::PointXYZL PCLPointType;
-    //typedef pcl::PointCloud<PCLPointType> PC;
-    //typedef pcl::PointCloud<PCLPointType> PCLPointCloud;
 
    //New Point Cloud that is annotated with the flow in each dimension
     // Computed with FlowNet3d as of 8/02/20
@@ -45,5 +41,9 @@ namespace semantic_bki{
     typedef XYZFlowL PCLPointType;
 
     typedef pcl::PointCloud<XYZFlowL> PCLPointCloud;
+
+    // // PCL PointCloud types as input
+    // typedef pcl::PointXYZL PCLPointType;
+    // typedef pcl::PointCloud<PCLPointType> PCLPointCloud;
 }
 #endif

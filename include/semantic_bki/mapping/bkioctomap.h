@@ -27,6 +27,25 @@ namespace semantic_bki {
     };
     typedef PCTrainingParameters PCParams;
 
+    //Map parameter helper struct
+    struct MapParams{
+        double resolution;
+        unsigned short block_depth;
+        int num_classes;
+
+        double sf2;
+        double ell;
+        float prior;
+
+        float flow_sf2;
+        float flow_ell;
+
+        float var_thresh;
+        double free_thresh;
+        double occupied_thresh;
+    };
+
+
     /*
      * @brief BGKOctoMap
      *
@@ -71,9 +90,13 @@ namespace semantic_bki {
                 float sf2,
                 float ell,
                 float prior,
+                float flow_sf2,
+                float flow_ell,
                 float var_thresh,
                 float free_thresh,
                 float occupied_thresh);
+        
+        SemanticBKIOctoMap(MapParams *params);
 
         ~SemanticBKIOctoMap();
 

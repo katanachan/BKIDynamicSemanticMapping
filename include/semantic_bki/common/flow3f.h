@@ -1,3 +1,12 @@
+/**
+*    Description: A library built on top of class Vector3 to
+*    provide additional functionalities to store and 
+*    access the velocity of a point in 3-dimensions
+*    @file flow3f.h
+*    @author Aishwarya Unnikrishnan
+*    @version 1.1 08/04/20 
+**/
+
 #include "point3f.h"
 
 namespace semantic_bki{
@@ -47,6 +56,12 @@ namespace semantic_bki{
             data[2] = other(5);
             return *this;
         }
+        /*!
+        *  \brief Function call operator that will invoke Vector3
+        *          when the user wants x, y or z : indexed as 0, 1, 2
+        *          If you want velocities vx, vym vz are indexed as 3-5
+        * @param an int to index the 6D vector
+        */
         inline const float &operator()(unsigned int i) const {
             if (i < 3)
                 return Vector3::operator()(i);
@@ -90,8 +105,6 @@ namespace semantic_bki{
         inline Vector3 point() const{
             return Vector3(x(), y(), z());
         } 
-
-        
 
         private:
             float data[3];

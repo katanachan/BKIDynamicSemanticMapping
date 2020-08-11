@@ -4,6 +4,18 @@
 
 namespace semantic_bki {
 
+
+    //Kernel parameters helper struct
+    struct KernelParams{
+
+        double sf2;
+        double ell;
+
+        float flow_sf2;
+        float flow_ell;
+
+    };
+
     /// Occupancy state: before pruning: FREE, OCCUPIED, UNKNOWN; after pruning: PRUNED
     enum class State : char {
         FREE, OCCUPIED, UNKNOWN, PRUNED
@@ -27,14 +39,17 @@ namespace semantic_bki {
         /*
          * @brief Constructors and destructor.
          */
-        Semantics() : ms(std::vector<float>(num_class, prior)), state(State::UNKNOWN) { classified = false; }
+        Semantics() : ms(std::vector<float>(num_class, prior)), state(State::UNKNOWN),
+                        flow(std::vector<float>(num_class, 0.0f)) { classified = false; }
 
-        Semantics(const Semantics &other) : ms(other.ms), state(other.state), semantics(other.semantics) { }
+        Semantics(const Semantics &other) : ms(other.ms), state(other.state), 
+                            semantics(other.semantics), flow(other.flow) { }
 
         Semantics &operator=(const Semantics &other) {
           ms = other.ms;
           state = other.state;
           semantics = other.semantics;
+          flow = other.flow;
           return *this;
         }
 
@@ -45,7 +60,8 @@ namespace semantic_bki {
          * @param ybar kernel density estimate of positive class (occupied)
          * @param kbar kernel density of negative class (unoccupied)
          */
-        void update(const std::vector<float>& ybars);
+        void update(const std::vector<float>& ybars,
+              const std::vector<float>& vbars);
 
         /// Get probability of occupancy.
         void get_probs(std::vector<float>& probs) const;
@@ -74,11 +90,13 @@ namespace semantic_bki {
         std::vector<float> ms; // concentration parameters
         State state; // FREE, OCCUPIED OR UNKNOWN
         int semantics; // 0 if free
+        std::vector<float> flow; // flow recorded for each class
         static int num_class;      // number of classes
-        
-        static float sf2;
-        static float ell;   // length-scale
+
         static float prior;  // prior on each class
+
+        static KernelParams kp; //kernel params - sf2, ell, flow_sf2, flow_ell
+
 
         static float var_thresh;
         static float free_thresh;     // FREE occupancy threshold
