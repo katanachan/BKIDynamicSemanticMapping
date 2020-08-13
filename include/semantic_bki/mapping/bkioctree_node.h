@@ -63,6 +63,10 @@ namespace semantic_bki {
         void update(const std::vector<float>& ybars,
               const std::vector<float>& vbars);
 
+        void update(const std::vector<float>& ybars,
+                  const std::vector<float> &vbars,
+                  const ScanStep time_diff);
+
         /// Get probability of occupancy.
         void get_probs(std::vector<float>& probs) const;
 

@@ -378,6 +378,8 @@ namespace semantic_bki {
                     // Only need to update if kernel density total kernel density est > 0
                     //if (kbar[j] > 0.0)
                     node.update(ybars[j], vbars[j]);
+                    //node.update(ybars[j], vbars[j], create_id - block->created_at);
+                    //block->created_at = create_id;
                 }
             }
         }

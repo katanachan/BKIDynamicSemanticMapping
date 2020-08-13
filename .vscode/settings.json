@@ -82,6 +82,9 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "state": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "vec4ub": "cpp",
+        "mixinvector": "cpp",
+        "buffered_value": "cpp"
     }
 }

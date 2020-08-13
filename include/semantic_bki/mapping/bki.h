@@ -99,7 +99,7 @@ namespace semantic_bki {
             
               for (int r = 0; r < _ybar.rows(); ++r){
                 ybars[r][k] = _ybar(r, 0);
-                vbars[r][k] = _vbar(r, 0);// / _y_vec.sum(); // compute the average velocity around that area
+                vbars[r][k] = _vbar(r, 0) / _y_vec.size(); // compute the average velocity around that area
 
               }
 
@@ -171,8 +171,8 @@ namespace semantic_bki {
          * @return Kxz covariance matrix
          */
         void covMaterniso3(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz) const {
-            dist(1.73205 / ell * x, 1.73205 / ell * z, Kxz);
-            Kxz = ((1 + Kxz.array()) * exp(-Kxz.array())).matrix() * sf2;
+            dist(1.73205 / flow_ell * x, 1.73205 / flow_ell * z, Kxz);
+            Kxz = ((1 + Kxz.array()) * exp(-Kxz.array())).matrix() * flow_sf2;
         }
 
         /*

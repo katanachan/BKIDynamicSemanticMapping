@@ -38,24 +38,54 @@ namespace semantic_bki {
                   const std::vector<float> &vbars) {
       assert(ybars.size() == num_class && vbars.size() == num_class);
       classified = true;
-
-      std::vector<float> probs(num_class);
-      get_probs(probs);
       for (int i = 0; i < num_class; ++i){
-        // //original
-        // ms[i] += ybars[i];
+        //original
+        //ms[i] += ybars[i];
         // // //current
         // flow[i] = vbars[i];
         // ms[i] =  exp( -flow[i] * flow[i]) /// (1 - probs[i])) 
         //     * ms[i] +  ybars[i];
-        // // //before
+        // // // //before
         ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
                     * ms[i] +  ybars[i];
-        flow[i] = vbars[i];
+        flow[i] = vbars[i]; 
         //std::cout << exp( -flow[i] * flow[i]) << std::endl;
       }
 
-      //std::vector<float> probs(num_class);
+      std::vector<float> probs(num_class);
+      get_probs(probs);
+
+      semantics = std::distance(probs.begin(), std::max_element(probs.begin(), probs.end()));
+
+      if (semantics == 0)
+        state = State::FREE;
+      else
+        state = State::OCCUPIED;
+    }
+
+
+    void Semantics::update(const std::vector<float>& ybars,
+                  const std::vector<float> &vbars,
+                  const ScanStep time_diff) {
+      assert(ybars.size() == num_class && vbars.size() == num_class);
+      classified = true;
+
+      
+      for (int i = 0; i < num_class; ++i){
+        //original
+        //ms[i] += ybars[i];
+        // // //current
+        // flow[i] = vbars[i];
+        // ms[i] =  exp( -flow[i] * flow[i]) /// (1 - probs[i])) 
+        //     * ms[i] +  ybars[i];
+        // // // //before
+        ms[i] =  exp( -flow[i] * flow[i] * time_diff ) // / (1 - probs[i]))
+                    * ms[i] +  ybars[i];
+        flow[i] = vbars[i]; 
+        //std::cout << exp( -flow[i] * flow[i]) << std::endl;
+      }
+
+      std::vector<float> probs(num_class);
       get_probs(probs);
 
       semantics = std::distance(probs.begin(), std::max_element(probs.begin(), probs.end()));
