@@ -30,7 +30,7 @@ namespace semantic_bki {
                                         0.7f, // occupied_thresh
                                         false
                                     ) { }
-    SemanticBKIOctoMap::SemanticBKIOctoMap(MapParams *params) : SemanticBKIOctoMap(params->resolution, // resolution
+    SemanticBKIOctoMap::SemanticBKIOctoMap(const MapParams *params) : SemanticBKIOctoMap(params->resolution, // resolution
                                         params->block_depth,
                                         params->num_classes,
                                         params->sf2, // sf2
@@ -44,18 +44,18 @@ namespace semantic_bki {
                                         params->spatiotemporal
                                     ) { }
 
-    SemanticBKIOctoMap::SemanticBKIOctoMap(float resolution,
-                        unsigned short block_depth,
-                        int num_class,
-                        float sf2,
-                        float ell,
-                        float prior,
-                        float flow_sf2,
-                        float flow_ell,
-                        float var_thresh,
-                        float free_thresh,
-                        float occupied_thresh,
-                        bool spatiotemporal_in)
+    SemanticBKIOctoMap::SemanticBKIOctoMap(const float resolution,
+                        const unsigned short block_depth,
+                        const int num_class,
+                        const float sf2,
+                        const float ell,
+                        const float prior,
+                        const float flow_sf2,
+                        const float flow_ell,
+                        const float var_thresh,
+                        const float free_thresh,
+                        const float occupied_thresh,
+                        const bool spatiotemporal_in)
             : resolution(resolution), block_depth(block_depth),
               block_size((float) pow(2, block_depth - 1) * resolution),
               spatiotemporal(spatiotemporal_in) {
@@ -468,7 +468,7 @@ namespace semantic_bki {
         }
     }
 
-    void SemanticBKIOctoMap::downsample(const PCLPointCloud &in, PCLPointCloud &out, float ds_resolution) const {
+    void SemanticBKIOctoMap::downsample(const PCLPointCloud &in, PCLPointCloud &out, const float ds_resolution) const {
         if (ds_resolution < 0) {
             out = in;
             return;
@@ -483,7 +483,7 @@ namespace semantic_bki {
     }
 
     void SemanticBKIOctoMap::beam_sample(const flow3f &hit, const point3f &origin, PointCloud &frees,
-                                float free_resolution) const {
+                                const float free_resolution) const {
         frees.clear();
 
         float x0 = origin.x();

@@ -95,8 +95,43 @@ static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::Marke
 
 }
 
-// static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, const double resolution,
-//                                const double free_resolution, )
+static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeHandle &nh,
+                            const semantic_bki::PCParams *train_params,
+                            const semantic_bki::MapParams *mparams,
+                            const int scan_num, std::string file_prefix ){
+
+    semantic_bki::point3f prev_origin;
+    semantic_bki::PCLPointCloud prev_cloud;
+    Eigen::Quaternionf prev_rot;
+    std::string prev_filename(file_prefix +  "_1.pcd");
+    load_pcd(prev_filename, prev_origin, prev_rot, prev_cloud);
+
+    for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
+        semantic_bki::PCLPointCloud cloud;
+        semantic_bki::point3f origin;
+        Eigen::Quaternionf rot;
+        std::string filename(file_prefix +  "_" + std::to_string(scan_id) + ".pcd");
+        load_pcd(filename, origin, rot, cloud);
+        if (is_rotation_valid(rot, prev_rot) && is_data_valid(origin, prev_origin)){
+            map.insert_pointcloud(prev_cloud, prev_origin, 
+                                train_params, (semantic_bki::ScanStep) scan_id);
+            ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
+        }
+        else
+            ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
+	    prev_origin = origin;
+        prev_cloud = cloud; //transfer loaded cloud as previous cloud to be inserted in later
+        prev_rot = rot;
+
+        semantic_bki::MarkerArrayPub m_pub(nh, "/semantic_bki", mparams->resolution);
+        semantic_bki::MarkerArrayPub v_pub(nh, "/semantic_bki_variance", mparams->resolution);
+
+        
+        publish_map(m_pub, v_pub, map, mparams->num_classes);
+    }
+
+
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamic_node");
@@ -108,22 +143,10 @@ int main(int argc, char **argv) {
     std::string var_topic("/semantic_bki_variance");
     std::string dir;
     std::string prefix;
-    int block_depth = 4;
-    double sf2 = 1.0;
-    double ell = 1.0;
-    float flow_sf2 = 0.2;
-    float flow_ell = 0.2;
-    float prior = 1.0f;
-    float var_thresh = 1.0f;
-    double free_thresh = 0.3;
-    double occupied_thresh = 0.7;
-    double resolution = 0.1;
-    int num_class = 2;
-    double free_resolution = 0.5;
-    double ds_resolution = 0.1;
+
     int scan_num = 0;
-    double max_range = 6;
-    semantic_bki::PCParams *train_params = new semantic_bki::PCParams{0.1, 0.5, -1};
+    
+    semantic_bki::PCParams *train_params = new semantic_bki::PCParams{0.1, 0.5, -1}; //ds_resolution, free_resolution, max_range
     semantic_bki::MapParams *mparams = new semantic_bki::MapParams{0.1, 4, 2, //resolution, block_depth, num_classes 
                                     1.0, 1.0, 1.0f, //sf2, ell, prior 
 
@@ -137,17 +160,22 @@ int main(int argc, char **argv) {
 
     nh.param<std::string>("dir", dir, dir);
     nh.param<std::string>("prefix", prefix, prefix);
-    nh.param<int>("block_depth", block_depth, block_depth);
-    nh.param<double>("sf2", sf2, sf2);
-    nh.param<double>("ell", ell, ell);
-    nh.param<float>("flow_sf2", flow_sf2, flow_sf2);
-    nh.param<float>("flow_ell", flow_ell, flow_ell);
-    nh.param<float>("prior", prior, prior);
-    nh.param<float>("var_thresh", var_thresh, var_thresh);
-    nh.param<double>("free_thresh", free_thresh, free_thresh);
-    nh.param<double>("occupied_thresh", occupied_thresh, occupied_thresh);
-    nh.param<double>("resolution", resolution, resolution);
-    nh.param<int>("num_class", num_class, num_class);
+    nh.param<int>("block_depth", mparams->block_depth, mparams->block_depth);
+
+    nh.param<double>("sf2", mparams->sf2, mparams->sf2);
+    nh.param<double>("ell", mparams->ell, mparams->ell);
+    nh.param<float>("prior", mparams->prior, mparams->prior);
+
+    nh.param<float>("flow_sf2", mparams->flow_sf2, mparams->flow_sf2);
+    nh.param<float>("flow_ell", mparams->flow_ell, mparams->flow_ell);
+    
+    
+    nh.param<float>("var_thresh", mparams->var_thresh, mparams->var_thresh);
+    nh.param<double>("free_thresh", mparams->free_thresh, mparams->free_thresh);
+    nh.param<double>("occupied_thresh", mparams->occupied_thresh, mparams->occupied_thresh);
+    
+    nh.param<double>("resolution", mparams->resolution, mparams->resolution);
+    nh.param<int>("num_class", mparams->num_classes, mparams->num_classes);
     nh.param<double>("free_resolution", train_params->free_resolution, train_params->free_resolution);
     nh.param<double>("ds_resolution", train_params->ds_resolution, train_params->ds_resolution);
     nh.param<int>("scan_num", scan_num, scan_num);
@@ -156,24 +184,26 @@ int main(int argc, char **argv) {
     ROS_INFO_STREAM("Parameters:" << std::endl <<
             "dir: " << dir << std::endl <<
             "prefix: " << prefix << std::endl <<
-            "block_depth: " << block_depth << std::endl <<
-            "sf2: " << sf2 << std::endl <<
-            "ell: " << ell << std::endl <<
-            "prior: " << prior << std::endl <<
-            "var_thresh: " << var_thresh << std::endl <<
-            "free_thresh: " << free_thresh << std::endl <<
-            "occupied_thresh: " << occupied_thresh << std::endl <<
-            "resolution: " << resolution << std::endl <<
-            "num_class: " << num_class << std::endl <<
+            "block_depth: " << mparams->block_depth << std::endl <<
+            "sf2: " << mparams->sf2 << std::endl <<
+            "ell: " << mparams->ell << std::endl <<
+            "prior: " << mparams->prior << std::endl <<
+            "var_thresh: " << mparams->var_thresh << std::endl <<
+            "free_thresh: " << mparams->free_thresh << std::endl <<
+            "occupied_thresh: " << mparams->occupied_thresh << std::endl <<
+            "resolution: " << mparams->resolution << std::endl <<
+            "num_class: " << mparams->num_classes << std::endl <<
             "free_resolution: " << train_params->free_resolution << std::endl <<
             "ds_resolution: " << train_params->ds_resolution << std::endl <<
             "scan_sum: " << scan_num << std::endl <<
-            "max_range: " << max_range
+            "max_range: " << train_params->max_range
             );
 
     /////////////////////// Semantic CSM //////////////////////
-    semantic_bki::SemanticBKIOctoMap map_csm(resolution, 1, num_class, 
-                sf2, ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh, false); //vanilla map
+
+    semantic_bki::SemanticBKIOctoMap map_csm(mparams->resolution, 1, mparams->num_classes, 
+                mparams->sf2, mparams->ell, mparams->prior, mparams->flow_sf2, mparams->flow_ell, 
+                mparams->var_thresh, mparams->free_thresh, mparams->occupied_thresh, false); //vanilla map
     ros::Time start = ros::Time::now();
     semantic_bki::point3f origin_prev;
     semantic_bki::PCLPointCloud cloud_prev;
@@ -204,74 +234,29 @@ int main(int argc, char **argv) {
     ros::Time end = ros::Time::now(); 
     ROS_INFO_STREAM("Semantic CSM finished in " << (end - start).toSec() << "s");
 
-    semantic_bki::MarkerArrayPub m_pub_csm(nh, map_topic_csm, resolution);
-    semantic_bki::MarkerArrayPub v_pub_csm(nh, var_topic_csm, resolution);
+    semantic_bki::MarkerArrayPub m_pub_csm(nh, map_topic_csm, mparams->resolution);
+    semantic_bki::MarkerArrayPub v_pub_csm(nh, var_topic_csm, mparams->resolution);
     publish_map(m_pub_csm, v_pub_csm, map_csm);
     
     /////////////////////// Semantic BKI //////////////////////
-    semantic_bki::SemanticBKIOctoMap map(resolution, block_depth, num_class, sf2,
-                 ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh, false); //inferred map
-    start = ros::Time::now();
-    semantic_bki::point3f prev_origin_bki;
-    semantic_bki::PCLPointCloud prev_cloud_bki;
-    Eigen::Quaternionf prev_rot_bki;
-    std::string prev_filename(dir + "/" + prefix + "_1.pcd");
-    load_pcd(prev_filename, prev_origin_bki, prev_rot_bki, prev_cloud_bki);
-    for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
-        semantic_bki::PCLPointCloud cloud;
-        semantic_bki::point3f origin;
-        Eigen::Quaternionf rot;
-        std::string filename(dir + "/" + prefix + "_" + std::to_string(scan_id) + ".pcd");
-        load_pcd(filename, origin, rot, cloud);
-        if (is_rotation_valid(rot, prev_rot_bki) && is_data_valid(origin, prev_origin_bki)){
-            map.insert_pointcloud(prev_cloud_bki, prev_origin_bki, train_params,
-                                         (semantic_bki::ScanStep) scan_id);
-            ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
-        }
-        else
-            ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
-	    prev_origin_bki = origin;
-        prev_cloud_bki = cloud; //transfer loaded cloud as previous cloud to be inserted in later
-        prev_rot_bki = rot;
+    semantic_bki::SemanticBKIOctoMap map(mparams); //inferred map
+    
 
-        semantic_bki::MarkerArrayPub m_pub(nh, map_topic, resolution);
-        semantic_bki::MarkerArrayPub v_pub(nh, var_topic, resolution);
-        publish_map(m_pub, v_pub, map);
-    }
+    
+    start = ros::Time::now();
+    run_map_experiment(map, nh, train_params, mparams, scan_num, dir + "/" + prefix);
     //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     end = ros::Time::now();
     ROS_INFO_STREAM("Semantic BKI finished in " << (end - start).toSec() << "s");
 
 
     /////////////////////// Dynamic BKI //////////////////////
-    semantic_bki::SemanticBKIOctoMap dmap(resolution, block_depth, num_class, sf2,
-                 ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh, true); //inferred map
+    mparams->spatiotemporal = true;
+    semantic_bki::SemanticBKIOctoMap dmap(mparams); //inferred map
     start = ros::Time::now();
-    semantic_bki::point3f prev_origin_dyn;
-    semantic_bki::PCLPointCloud prev_cloud_dyn;
-    Eigen::Quaternionf prev_rot_dyn;
-    std::string prev_filename_d(dir + "/" + prefix + "_1.pcd");
-    load_pcd(prev_filename_d, prev_origin_dyn, prev_rot_dyn, prev_cloud_dyn);
-    for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
-        semantic_bki::PCLPointCloud cloud;
-        semantic_bki::point3f origin;
-        Eigen::Quaternionf rot;
-        std::string filename(dir + "/" + prefix + "_" + std::to_string(scan_id) + ".pcd");
-        load_pcd(filename, origin, rot, cloud);
-        if (is_rotation_valid(rot, prev_rot_dyn) && is_data_valid(origin, prev_origin_dyn)){
-            dmap.insert_pointcloud(prev_cloud_dyn, prev_origin_dyn, train_params, (semantic_bki::ScanStep) scan_id);
-            ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
-        }
-        else
-            ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
-	    prev_origin_dyn = origin;
-        prev_cloud_dyn = cloud; //transfer loaded cloud as previous cloud to be inserted in later
-        prev_rot_dyn = rot;
+    
+    run_map_experiment(dmap, nh, train_params, mparams, scan_num, dir + "/" + prefix);
 
-        semantic_bki::MarkerArrayPub dm_pub(nh, map_topic, resolution);
-        semantic_bki::MarkerArrayPub dv_pub(nh, var_topic, resolution);
-        publish_map(dm_pub, dv_pub, dmap);
-    }
     //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     end = ros::Time::now();
     ROS_INFO_STREAM("Dynamic BKI finished in " << (end - start).toSec() << "s");

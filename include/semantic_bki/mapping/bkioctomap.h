@@ -13,11 +13,11 @@ namespace semantic_bki {
 
     //PointCloud training helper struct
     struct PCTrainingParameters{
-        point3f origin;
+        //point3f origin;
         double ds_resolution;
         double free_resolution;
         double max_range;
-        ScanStep scan_number;
+        //ScanStep scan_number;
         //default constructor - does nothing
         PCTrainingParameters() {}
         //custom constructor to load data in
@@ -30,7 +30,7 @@ namespace semantic_bki {
     //Map parameter helper struct
     struct MapParams{
         double resolution;
-        unsigned short block_depth;
+        int block_depth;
         int num_classes;
 
         double sf2;
@@ -86,20 +86,20 @@ namespace semantic_bki {
          * @param free_thresh free threshold for Occupancy probability (default 0.3)
          * @param occupied_thresh occupied threshold for Occupancy probability (default 0.7)
          */
-        SemanticBKIOctoMap(float resolution,
-                unsigned short block_depth,
-                int num_class,
-                float sf2,
-                float ell,
-                float prior,
-                float flow_sf2,
-                float flow_ell,
-                float var_thresh,
-                float free_thresh,
-                float occupied_thresh,
-                bool spatiotemporal);
+        SemanticBKIOctoMap(const float resolution,
+                const unsigned short block_depth,
+                const int num_class,
+                const float sf2,
+                const float ell,
+                const float prior,
+                const float flow_sf2,
+                const float flow_ell,
+                const float var_thresh,
+                const float free_thresh,
+                const float occupied_thresh,
+                const bool spatiotemporal);
         
-        SemanticBKIOctoMap(MapParams *params);
+        SemanticBKIOctoMap(const MapParams *params);
 
         ~SemanticBKIOctoMap();
 
@@ -415,11 +415,11 @@ namespace semantic_bki {
         static bool search_callback(GPPointType *p, void *arg);
 
         /// Downsample PCLPointCloud using PCL VoxelGrid Filtering.
-        void downsample(const PCLPointCloud &in, PCLPointCloud &out, float ds_resolution) const;
+        void downsample(const PCLPointCloud &in, PCLPointCloud &out, const float ds_resolution) const;
 
         /// Sample free training points along sensor beams.
         void beam_sample(const flow3f &hits, const point3f &origin, PointCloud &frees,
-                         float free_resolution) const;
+                         const float free_resolution) const;
 
         /// Get training data from one sensor scan.
         void get_training_data(const PCLPointCloud &cloud, const point3f &origin,
