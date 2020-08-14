@@ -119,20 +119,17 @@ namespace semantic_bki {
          * @brief Insert PCL PointCloud into BGKOctoMaps.
          * @param cloud one scan in PCLPointCloud format
          * @param origin sensor origin in the scan
-         * @param ds_resolution downsampling resolution for PCL VoxelGrid filtering (-1 if no downsampling)
-         * @param free_res resolution for sampling free training points along sensor beams (default 2.0)
-         * @param max_range maximum range for beams to be considered as valid measurements (-1 if no limitation)
+         * @param PCParams train_params will contain:
+         *  ds_resolution downsampling resolution for PCL VoxelGrid filtering (-1 if no downsampling)
+         *  free_res resolution for sampling free training points along sensor beams (default 2.0 (Shwarya: check this))
+         *   maximum range for beams to be considered as valid measurements (-1 if no limitation)
          */
-        void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                               float free_res = 2.0f,
-                               float max_range = -1, 
-                               ScanStep create_id = 0);
+        void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, 
+                               const PCParams *train_params, const ScanStep create_id = 0);
 
 
-        void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                               float free_res = 2.0f,
-                               float max_range = -1,
-                               ScanStep create_id = 0);
+        void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, 
+                                const PCParams *train_params, const ScanStep create_id = 0);
 
         //void insert_training_data(const GPPointCloud &cloud);
 
@@ -140,7 +137,7 @@ namespace semantic_bki {
         void get_bbox(point3f &lim_min, point3f &lim_max) const;
 
         // Update SemanticOctree within node with number of scans that have passed
-        void sync_block(ScanStep scans_done);
+        void sync_block(const ScanStep scans_done);
 
         class RayCaster {
         public:
@@ -425,8 +422,8 @@ namespace semantic_bki {
                          float free_resolution) const;
 
         /// Get training data from one sensor scan.
-        void get_training_data(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                               float free_resolution, float max_range, GPPointCloud &xy) const;
+        void get_training_data(const PCLPointCloud &cloud, const point3f &origin,
+                                const PCParams *train_params, GPPointCloud &xy) const;
 
         float resolution;
         float block_size;

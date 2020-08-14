@@ -107,8 +107,8 @@ namespace semantic_bki {
         Block::key_loc_map = init_key_loc_map(resolution, block_depth);
     }
 
-    void SemanticBKIOctoMap::insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                                      float free_res, float max_range, ScanStep create_id) {
+    void SemanticBKIOctoMap::insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, 
+                                                 const PCParams *train_params, const ScanStep create_id) {
 
 #ifdef DEBUG
         Debug_Msg("Insert pointcloud: " << "cloud size: " << cloud.size() << " origin: " << origin);
@@ -117,7 +117,7 @@ namespace semantic_bki {
         ////////// Preparation //////////////////////////
         /////////////////////////////////////////////////
         GPPointCloud xy;
-        get_training_data(cloud, origin, ds_resolution, free_res, max_range, xy);
+        get_training_data(cloud, origin, train_params, xy);
 #ifdef DEBUG
         Debug_Msg("Training data size: " << xy.size());
 #endif
@@ -260,8 +260,8 @@ namespace semantic_bki {
 
 
 
-    void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                                      float free_res, float max_range, ScanStep create_id) {
+    void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, 
+                                                const PCParams *train_params, const ScanStep create_id) {
 
 #ifdef DEBUG
         Debug_Msg("Insert pointcloud: " << "cloud size: " << cloud.size() << " origin: " << origin);
@@ -270,7 +270,7 @@ namespace semantic_bki {
         ////////// Preparation //////////////////////////
         /////////////////////////////////////////////////
         GPPointCloud xy;
-        get_training_data(cloud, origin, ds_resolution, free_res, max_range, xy);
+        get_training_data(cloud, origin, train_params, xy);
 #ifdef DEBUG
         Debug_Msg("Training data size: " << xy.size());
 #endif
@@ -415,10 +415,10 @@ namespace semantic_bki {
     //     }
     // }
 
-    void SemanticBKIOctoMap::get_training_data(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                                      float free_resolution, float max_range, GPPointCloud &xy) const {
+    void SemanticBKIOctoMap::get_training_data(const PCLPointCloud &cloud, const point3f &origin, 
+                                                const PCParams *train_params, GPPointCloud &xy) const {
         PCLPointCloud sampled_hits;
-        downsample(cloud, sampled_hits, ds_resolution);
+        downsample(cloud, sampled_hits, train_params->ds_resolution);
 
         PCLPointCloud frees;
         frees.height = 1;
@@ -426,9 +426,9 @@ namespace semantic_bki {
         xy.clear();
         for (auto it = sampled_hits.begin(); it != sampled_hits.end(); ++it) {
             flow3f p(it->x, it->y, it->z, it->vx, it->vy, it->vz);
-            if (max_range > 0) {
+            if (train_params->max_range > 0) {
                 double l = (p.point() - origin).norm();
-                if (l > max_range)
+                if (l > train_params->max_range)
                     continue;
             }
             
@@ -438,7 +438,7 @@ namespace semantic_bki {
             //frees need not have a velocity associated with them
 
             PointCloud frees_n;
-            beam_sample(p, origin, frees_n, free_resolution);
+            beam_sample(p, origin, frees_n, train_params->free_resolution);
 
             PCLPointType p_origin = PCLPointType();
             p_origin.x = origin.x();
@@ -459,7 +459,7 @@ namespace semantic_bki {
         }
 
         PCLPointCloud sampled_frees;    
-        downsample(frees, sampled_frees, ds_resolution);
+        downsample(frees, sampled_frees, train_params->ds_resolution);
 
         //frees are also passed into xy
 
