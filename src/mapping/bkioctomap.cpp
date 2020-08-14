@@ -27,7 +27,8 @@ namespace semantic_bki {
                                         0.2, //flow_ell
                                         1.0f, // var_thresh
                                         0.3f, // free_thresh
-                                        0.7f // occupied_thresh
+                                        0.7f, // occupied_thresh
+                                        false
                                     ) { }
     SemanticBKIOctoMap::SemanticBKIOctoMap(MapParams *params) : SemanticBKIOctoMap(params->resolution, // resolution
                                         params->block_depth,
@@ -39,7 +40,8 @@ namespace semantic_bki {
                                         params->flow_ell,
                                         params->var_thresh, // var_thresh
                                         params->free_thresh,
-                                        params->occupied_thresh // occupied_thresh
+                                        params->occupied_thresh, // occupied_thresh
+                                        params->spatiotemporal
                                     ) { }
 
     SemanticBKIOctoMap::SemanticBKIOctoMap(float resolution,
@@ -52,9 +54,11 @@ namespace semantic_bki {
                         float flow_ell,
                         float var_thresh,
                         float free_thresh,
-                        float occupied_thresh)
+                        float occupied_thresh,
+                        bool spatiotemporal_in)
             : resolution(resolution), block_depth(block_depth),
-              block_size((float) pow(2, block_depth - 1) * resolution) {
+              block_size((float) pow(2, block_depth - 1) * resolution),
+              spatiotemporal(spatiotemporal_in) {
         Block::resolution = resolution;
         Block::size = this->block_size;
         Block::key_loc_map = init_key_loc_map(resolution, block_depth);
@@ -177,7 +181,7 @@ namespace semantic_bki {
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::kp);
+            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, SemanticOcTreeNode::kp);
             bgk->train(block_x, block_y);
             //stores the training points into an Inference instance.
             bgk->store_flow(block_v);
@@ -236,7 +240,7 @@ namespace semantic_bki {
                 SemanticOcTreeNode &node = leaf_it.get_node();
 
                 // Only need to update if kernel density total kernel density est > 0
-                node.update(ybars[j], vbars[j]);
+                node.update(ybars[j], vbars[j], spatiotemporal);
                 //Note: Shwarya : only potential place to update velocities or 
                 // "store" any type of parameters.
             }
@@ -323,7 +327,7 @@ namespace semantic_bki {
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, SemanticOcTreeNode::kp);
+            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, SemanticOcTreeNode::kp);
             bgk->train(block_x, block_y);
             bgk->store_flow(block_v);
 #ifdef OPENMP
@@ -377,9 +381,9 @@ namespace semantic_bki {
                     SemanticOcTreeNode &node = leaf_it.get_node();
                     // Only need to update if kernel density total kernel density est > 0
                     //if (kbar[j] > 0.0)
-                    node.update(ybars[j], vbars[j]);
-                    //node.update(ybars[j], vbars[j], create_id - block->created_at);
-                    //block->created_at = create_id;
+                    node.update(ybars[j], vbars[j], spatiotemporal);
+                    // node.update(ybars[j], vbars[j], create_id - block->created_at);
+                    // block->created_at = create_id;
                 }
             }
         }

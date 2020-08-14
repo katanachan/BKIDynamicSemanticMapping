@@ -35,20 +35,17 @@ namespace semantic_bki {
     }
 
     void Semantics::update(const std::vector<float>& ybars,
-                  const std::vector<float> &vbars) {
+                  const std::vector<float> &vbars, bool spatiotemporal) {
       assert(ybars.size() == num_class && vbars.size() == num_class);
       classified = true;
       for (int i = 0; i < num_class; ++i){
-        //original
-        //ms[i] += ybars[i];
-        // // //current
-        // flow[i] = vbars[i];
-        // ms[i] =  exp( -flow[i] * flow[i]) /// (1 - probs[i])) 
-        //     * ms[i] +  ybars[i];
-        // // // //before
-        ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
+        if (spatiotemporal){
+          ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
                     * ms[i] +  ybars[i];
-        flow[i] = vbars[i]; 
+          flow[i] =  vbars[i]; 
+        }
+        else
+          ms[i] += ybars[i];
         //std::cout << exp( -flow[i] * flow[i]) << std::endl;
       }
 
@@ -62,6 +59,7 @@ namespace semantic_bki {
       else
         state = State::OCCUPIED;
     }
+    
 
 
     void Semantics::update(const std::vector<float>& ybars,

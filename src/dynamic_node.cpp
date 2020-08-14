@@ -5,7 +5,6 @@
 #include "bkioctomap.h"
 #include "markerarray_pub.h"
 
-
 static void load_pcd(std::string filename, semantic_bki::point3f &origin,
                  semantic_bki::PCLPointCloud &cloud) {
     pcl::PCLPointCloud2 cloud2;
@@ -69,6 +68,33 @@ static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen:
 
     }
 
+static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::MarkerArrayPub &v_pub,
+        semantic_bki::SemanticBKIOctoMap &map, int num_class = 4){
+
+    float max_var = std::numeric_limits<float>::min();
+    float min_var = std::numeric_limits<float>::max(); 
+    for (auto it = map.begin_leaf(); it != map.end_leaf(); ++it) {
+        if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
+            semantic_bki::point3f p = it.get_loc(); //get octree node
+            int semantics = it.get_node().get_semantics(); // get associated semantics
+            m_pub.insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), 
+                            semantics, 0); //data -> marker
+            std::vector<float> vars(num_class);
+            it.get_node().get_vars(vars);
+            v_pub.insert_point3d_variance(p.x(), p.y(), p.z(), min_var, max_var, it.get_size(), vars[semantics]);
+            if (vars[semantics] > max_var)
+		          max_var = vars[semantics];
+		        if (vars[semantics] < min_var)
+		          min_var = vars[semantics];
+        }
+    }
+    m_pub.publish();
+    v_pub.publish();
+    std::cout << "max_var: " << max_var << std::endl;
+    std::cout << "min_var: " << min_var << std::endl;
+
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamic_node");
     ros::NodeHandle nh("~");
@@ -100,7 +126,9 @@ int main(int argc, char **argv) {
 
                                     0.2, 0.2, // flow_sf2, flow_ell
 
-                                    1.0f, 0.3, 0.7 //var_thresh, free_thresh, occupied_thresh
+                                    1.0f, 0.3, 0.7, //var_thresh, free_thresh, occupied_thresh
+
+                                    false //spatiotemporal
                                     };
 
 
@@ -142,7 +170,7 @@ int main(int argc, char **argv) {
 
     /////////////////////// Semantic CSM //////////////////////
     semantic_bki::SemanticBKIOctoMap map_csm(resolution, 1, num_class, 
-                sf2, ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh); //vanilla map
+                sf2, ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh, false); //vanilla map
     ros::Time start = ros::Time::now();
     semantic_bki::point3f origin_prev;
     semantic_bki::PCLPointCloud cloud_prev;
@@ -166,49 +194,21 @@ int main(int argc, char **argv) {
 	    origin_prev = origin;
         cloud_prev = cloud; //transfer loaded cloud as previous cloud to be inserted in later
         rot_prev = rot;
+
+
     }
+    
     //map_csm.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     ros::Time end = ros::Time::now(); 
     ROS_INFO_STREAM("Semantic CSM finished in " << (end - start).toSec() << "s");
 
-    /////////////////////// Publish Map //////////////////////
-    float max_var = std::numeric_limits<float>::min();
-    float min_var = std::numeric_limits<float>::max(); 
     semantic_bki::MarkerArrayPub m_pub_csm(nh, map_topic_csm, resolution);
-    for (auto it = map_csm.begin_leaf(); it != map_csm.end_leaf(); ++it) {
-        if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
-            semantic_bki::point3f p = it.get_loc();
-            int semantics = it.get_node().get_semantics();
-            m_pub_csm.insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), semantics, 0);
-            std::vector<float> vars(num_class);
-            it.get_node().get_vars(vars);
-            if (vars[semantics] > max_var)
-		          max_var = vars[semantics];
-		        if (vars[semantics] < min_var)
-		          min_var = vars[semantics];
-        }
-    }
-    m_pub_csm.publish();
-    std::cout << "max_var: " << max_var << std::endl;
-    std::cout << "min_var: " << min_var << std::endl;
-    
-    /////////////////////// Variance Map //////////////////////
     semantic_bki::MarkerArrayPub v_pub_csm(nh, var_topic_csm, resolution);
-    for (auto it = map_csm.begin_leaf(); it != map_csm.end_leaf(); ++it) {
-        if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
-            semantic_bki::point3f p = it.get_loc();
-            int semantics = it.get_node().get_semantics();
-            std::vector<float> vars(num_class);
-            it.get_node().get_vars(vars);
-            v_pub_csm.insert_point3d_variance(p.x(), p.y(), p.z(), min_var, max_var, it.get_size(), vars[semantics]);
-        }
-    }
-    v_pub_csm.publish();
-
+    publish_map(m_pub_csm, v_pub_csm, map_csm);
     
     /////////////////////// Semantic BKI //////////////////////
     semantic_bki::SemanticBKIOctoMap map(resolution, block_depth, num_class, sf2,
-                 ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh); //inferred map
+                 ell, prior, flow_sf2, flow_ell, var_thresh, free_thresh, occupied_thresh, false); //inferred map
     start = ros::Time::now();
     semantic_bki::point3f prev_origin_bki;
     semantic_bki::PCLPointCloud prev_cloud_bki;
@@ -231,46 +231,16 @@ int main(int argc, char **argv) {
 	    prev_origin_bki = origin;
         prev_cloud_bki = cloud; //transfer loaded cloud as previous cloud to be inserted in later
         prev_rot_bki = rot;
+
+        semantic_bki::MarkerArrayPub m_pub(nh, map_topic, resolution);
+        semantic_bki::MarkerArrayPub v_pub(nh, var_topic, resolution);
+        publish_map(m_pub, v_pub, map);
     }
     //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
     end = ros::Time::now();
     ROS_INFO_STREAM("Semantic BKI finished in " << (end - start).toSec() << "s");
  
-    
-    /////////////////////// Publish Map //////////////////////
-    max_var = std::numeric_limits<float>::min();
-    min_var = std::numeric_limits<float>::max(); 
-    semantic_bki::MarkerArrayPub m_pub(nh, map_topic, resolution);
-    for (auto it = map.begin_leaf(); it != map.end_leaf(); ++it) {
-        if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
-            semantic_bki::point3f p = it.get_loc(); //get octree node
-            int semantics = it.get_node().get_semantics(); // get associated semantics
-            m_pub.insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), 
-                            semantics, 0); //data -> marker
-            std::vector<float> vars(num_class);
-            it.get_node().get_vars(vars);
-            if (vars[semantics] > max_var)
-		          max_var = vars[semantics];
-		        if (vars[semantics] < min_var)
-		          min_var = vars[semantics];
-        }
-    }
-    m_pub.publish();
-    std::cout << "max_var: " << max_var << std::endl;
-    std::cout << "min_var: " << min_var << std::endl;
 
-    /////////////////////// Variance Map //////////////////////
-    semantic_bki::MarkerArrayPub v_pub(nh, var_topic, resolution);
-    for (auto it = map.begin_leaf(); it != map.end_leaf(); ++it) {
-        if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
-            semantic_bki::point3f p = it.get_loc();
-            int semantics = it.get_node().get_semantics();
-            std::vector<float> vars(num_class);
-            it.get_node().get_vars(vars);
-            v_pub.insert_point3d_variance(p.x(), p.y(), p.z(), min_var, max_var, it.get_size(), vars[semantics]);
-        }
-    }
-    v_pub.publish();
 
     delete mparams;
 

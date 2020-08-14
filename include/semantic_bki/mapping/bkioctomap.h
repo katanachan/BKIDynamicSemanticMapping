@@ -43,6 +43,8 @@ namespace semantic_bki {
         float var_thresh;
         double free_thresh;
         double occupied_thresh;
+
+        bool spatiotemporal;
     };
 
 
@@ -94,7 +96,8 @@ namespace semantic_bki {
                 float flow_ell,
                 float var_thresh,
                 float free_thresh,
-                float occupied_thresh);
+                float occupied_thresh,
+                bool spatiotemporal);
         
         SemanticBKIOctoMap(MapParams *params);
 
@@ -430,6 +433,8 @@ namespace semantic_bki {
         unsigned short block_depth;
         std::unordered_map<BlockHashKey, Block *> block_arr;
         MyRTree rtree;
+        //Added by Shwarya
+        bool spatiotemporal; //spatial mapping if false, spatiotemporal if true
     };
 
 }

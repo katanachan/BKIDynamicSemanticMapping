@@ -61,7 +61,7 @@ namespace semantic_bki {
          * @param kbar kernel density of negative class (unoccupied)
          */
         void update(const std::vector<float>& ybars,
-              const std::vector<float>& vbars);
+              const std::vector<float>& vbars, bool spatiotemporal);
 
         void update(const std::vector<float>& ybars,
                   const std::vector<float> &vbars,

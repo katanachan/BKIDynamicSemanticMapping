@@ -19,8 +19,9 @@ namespace semantic_bki {
         using MatrixDKType = Eigen::Matrix<T, -1, 1>;
         using MatrixYType = Eigen::Matrix<T, -1, 1>;
 
-        SemanticBKInference(int nc, KernelParams &params) : nc(nc), sf2(params.sf2), 
+        SemanticBKInference(int nc, bool temporal_in, KernelParams &params) : nc(nc), sf2(params.sf2), 
                             ell(params.ell), flow_ell(params.flow_ell),
+                            flow_sf2(params.flow_sf2), temporal(temporal_in),
                             trained(false) { }
 
         /*
@@ -62,14 +63,16 @@ namespace semantic_bki {
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
           assert(trained == true);
           MatrixKType Ks, Kv;
-
           covSparse(_xs, x, Ks);
-          //Shwarya : TODO you can do the same and compute a velocity covariance
-          // here and simply multiply the velocities
-          // voxel centroids vs training points
-          covMaterniso3(_xs, x, Kv);
-          //covCountingSensorModel(_xs, x, Kv);
-          //covGaussian(_xs, x, Kv);
+          
+          if (temporal){
+           //Shwarya : TODO you can do the same and compute a velocity covariance
+            // here and simply multiply the velocities
+            // voxel centroids vs training points
+            covMaterniso3(_xs, x, Kv);
+            //covCountingSensorModel(_xs, x, Kv);
+            //covGaussian(_xs, x, Kv);
+          }
           vbars.resize(_xs.rows());
 
           ybars.resize(_xs.rows());
@@ -85,21 +88,27 @@ namespace semantic_bki {
               for (int i = 0; i < y_vec.size(); ++i) {
                 if (y_vec[i] == k){
                   _y_vec(i, 0) = 1;
-                  _v_vec(i, 0) = v(i, 0);
+                  if (temporal)
+                    _v_vec(i, 0) = v(i, 0);
                 }
                 else{
                   _y_vec(i, 0) = 0;
-                  _v_vec(i, 0) = 0;
+                  if (temporal)
+                    _v_vec(i, 0) = 0;
                 }
               }
             
               MatrixYType _ybar, _vbar;
               _ybar = (Ks * _y_vec);
-              _vbar = (Kv * _v_vec);
+              if (temporal){
+                _vbar = (Kv * _v_vec);
+              }
+              
             
               for (int r = 0; r < _ybar.rows(); ++r){
                 ybars[r][k] = _ybar(r, 0);
-                vbars[r][k] = _vbar(r, 0) / _y_vec.size(); // compute the average velocity around that area
+                if (temporal)
+                  vbars[r][k] = _vbar(r, 0) / _y_vec.size(); // compute the average velocity around that area
 
               }
 
@@ -214,6 +223,7 @@ namespace semantic_bki {
 
         T flow_sf2;
         T flow_ell;
+        bool temporal;
 
 
         T sf2;    // signal variance
