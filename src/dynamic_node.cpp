@@ -52,6 +52,7 @@ static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen:
     */
     static bool is_data_valid(const semantic_bki::point3f &origin_prev, 
                     const semantic_bki::point3f &origin_now){
+            std::cout << "Displacement between scans" << origin_now - origin_prev << std::endl;
             if ((origin_prev - origin_now).norm() > 0.5)
                 return false;
             else
@@ -70,6 +71,9 @@ static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen:
 
 static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::MarkerArrayPub &v_pub,
         const semantic_bki::SemanticBKIOctoMap &map, const int num_class = 4){
+
+    m_pub.clear_map(0);
+    v_pub.clear_map(0);
 
     float max_var = std::numeric_limits<float>::min();
     float min_var = std::numeric_limits<float>::max(); 
@@ -104,6 +108,8 @@ static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeH
     semantic_bki::PCLPointCloud prev_cloud;
     Eigen::Quaternionf prev_rot;
     std::string prev_filename(file_prefix +  "_1.pcd");
+    semantic_bki::MarkerArrayPub m_pub(nh, "/semantic_bki", mparams->resolution);
+    semantic_bki::MarkerArrayPub v_pub(nh, "/semantic_bki_variance", mparams->resolution);
     load_pcd(prev_filename, prev_origin, prev_rot, prev_cloud);
 
     for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
@@ -113,6 +119,7 @@ static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeH
         std::string filename(file_prefix +  "_" + std::to_string(scan_id) + ".pcd");
         load_pcd(filename, origin, rot, cloud);
         if (is_rotation_valid(rot, prev_rot) && is_data_valid(origin, prev_origin)){
+        //if (is_data_valid(origin, prev_origin)){
             map.insert_pointcloud(prev_cloud, prev_origin, 
                                 train_params, (semantic_bki::ScanStep) scan_id);
             ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
@@ -121,10 +128,7 @@ static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeH
             ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
 	    prev_origin = origin;
         prev_cloud = cloud; //transfer loaded cloud as previous cloud to be inserted in later
-        prev_rot = rot;
-
-        semantic_bki::MarkerArrayPub m_pub(nh, "/semantic_bki", mparams->resolution);
-        semantic_bki::MarkerArrayPub v_pub(nh, "/semantic_bki_variance", mparams->resolution);
+        prev_rot = rot;  
 
         
         publish_map(m_pub, v_pub, map, mparams->num_classes);
@@ -145,6 +149,7 @@ int main(int argc, char **argv) {
     std::string prefix;
 
     int scan_num = 0;
+    bool spatial = false;
     
     semantic_bki::PCParams *train_params = new semantic_bki::PCParams{0.1, 0.5, -1}; //ds_resolution, free_resolution, max_range
     semantic_bki::MapParams *mparams = new semantic_bki::MapParams{0.1, 4, 2, //resolution, block_depth, num_classes 
@@ -180,6 +185,8 @@ int main(int argc, char **argv) {
     nh.param<double>("ds_resolution", train_params->ds_resolution, train_params->ds_resolution);
     nh.param<int>("scan_num", scan_num, scan_num);
     nh.param<double>("max_range", train_params->max_range, train_params->max_range);
+
+    nh.param<bool>("show_spatial", spatial, spatial);
    
     ROS_INFO_STREAM("Parameters:" << std::endl <<
             "dir: " << dir << std::endl <<
@@ -199,55 +206,57 @@ int main(int argc, char **argv) {
             "max_range: " << train_params->max_range
             );
 
-    /////////////////////// Semantic CSM //////////////////////
+    ros::Time start, end;
 
-    semantic_bki::SemanticBKIOctoMap map_csm(mparams->resolution, 1, mparams->num_classes, 
-                mparams->sf2, mparams->ell, mparams->prior, mparams->flow_sf2, mparams->flow_ell, 
-                mparams->var_thresh, mparams->free_thresh, mparams->occupied_thresh, false); //vanilla map
-    ros::Time start = ros::Time::now();
-    semantic_bki::point3f origin_prev;
-    semantic_bki::PCLPointCloud cloud_prev;
-    Eigen::Quaternionf rot_prev;
-    std::string filename(dir + "/" + prefix + "_1.pcd");
-    load_pcd(filename, origin_prev, rot_prev, cloud_prev);
-    for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
-        semantic_bki::PCLPointCloud cloud;
-        semantic_bki::point3f origin;
-        Eigen::Quaternionf rot;
-        std::string filename(dir + "/" + prefix + "_" + std::to_string(scan_id) + ".pcd");
-        load_pcd(filename, origin, rot, cloud); // loaded the next point cloud
-        if (is_data_valid(origin, origin_prev) & is_rotation_valid(rot, rot_prev )){
-            map_csm.insert_pointcloud_csm(cloud_prev, origin_prev, train_params, (semantic_bki::ScanStep) scan_id);
-            ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
-        }
-        else{
-            ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
-        }
-	    origin_prev = origin;
-        cloud_prev = cloud; //transfer loaded cloud as previous cloud to be inserted in later
-        rot_prev = rot;
+    // /////////////////////// Semantic CSM //////////////////////
+
+    // semantic_bki::SemanticBKIOctoMap map_csm(mparams->resolution, 1, mparams->num_classes, 
+    //             mparams->sf2, mparams->ell, mparams->prior, mparams->flow_sf2, mparams->flow_ell, 
+    //             mparams->var_thresh, mparams->free_thresh, mparams->occupied_thresh, false); //vanilla map
+    // ros::Time start = ros::Time::now();
+    // semantic_bki::point3f origin_prev;
+    // semantic_bki::PCLPointCloud cloud_prev;
+    // Eigen::Quaternionf rot_prev;
+    // std::string filename(dir + "/" + prefix + "_1.pcd");
+    // load_pcd(filename, origin_prev, rot_prev, cloud_prev);
+    // for (int scan_id = 2; scan_id <= scan_num; ++scan_id) {
+    //     semantic_bki::PCLPointCloud cloud;
+    //     semantic_bki::point3f origin;
+    //     Eigen::Quaternionf rot;
+    //     std::string filename(dir + "/" + prefix + "_" + std::to_string(scan_id) + ".pcd");
+    //     load_pcd(filename, origin, rot, cloud); // loaded the next point cloud
+    //     if (is_data_valid(origin, origin_prev)){
+    //         map_csm.insert_pointcloud_csm(cloud_prev, origin_prev, train_params, (semantic_bki::ScanStep) scan_id);
+    //         ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
+    //     }
+    //     else{
+    //         ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
+    //     }
+	//     origin_prev = origin;
+    //     cloud_prev = cloud; //transfer loaded cloud as previous cloud to be inserted in later
+    //     rot_prev = rot;
 
 
-    }
+    // }
     
-    //map_csm.sync_block((semantic_bki::ScanStep) (scan_num + 1));
-    ros::Time end = ros::Time::now(); 
-    ROS_INFO_STREAM("Semantic CSM finished in " << (end - start).toSec() << "s");
+    // //map_csm.sync_block((semantic_bki::ScanStep) (scan_num + 1));
+    // ros::Time end = ros::Time::now(); 
+    // ROS_INFO_STREAM("Semantic CSM finished in " << (end - start).toSec() << "s");
 
-    semantic_bki::MarkerArrayPub m_pub_csm(nh, map_topic_csm, mparams->resolution);
-    semantic_bki::MarkerArrayPub v_pub_csm(nh, var_topic_csm, mparams->resolution);
-    publish_map(m_pub_csm, v_pub_csm, map_csm);
+    // semantic_bki::MarkerArrayPub m_pub_csm(nh, map_topic_csm, mparams->resolution);
+    // semantic_bki::MarkerArrayPub v_pub_csm(nh, var_topic_csm, mparams->resolution);
+    // publish_map(m_pub_csm, v_pub_csm, map_csm);
     
     /////////////////////// Semantic BKI //////////////////////
-    semantic_bki::SemanticBKIOctoMap map(mparams); //inferred map
-    
-
-    
-    start = ros::Time::now();
-    run_map_experiment(map, nh, train_params, mparams, scan_num, dir + "/" + prefix);
-    //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
-    end = ros::Time::now();
-    ROS_INFO_STREAM("Semantic BKI finished in " << (end - start).toSec() << "s");
+    if (spatial){
+        semantic_bki::SemanticBKIOctoMap map(mparams); //inferred map
+ 
+        start = ros::Time::now();
+        run_map_experiment(map, nh, train_params, mparams, scan_num, dir + "/" + prefix);
+        //map.sync_block((semantic_bki::ScanStep) (scan_num + 1));
+        end = ros::Time::now();
+        ROS_INFO_STREAM("Semantic BKI finished in " << (end - start).toSec() << "s");
+    }
 
 
     /////////////////////// Dynamic BKI //////////////////////

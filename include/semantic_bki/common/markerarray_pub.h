@@ -403,7 +403,7 @@ namespace semantic_bki {
         typedef pcl::PointXYZ PointType;
         typedef pcl::PointCloud<PointType> PointCloud;
     public:
-        MarkerArrayPub(ros::NodeHandle nh, std::string topic, float resolution) : nh(nh),
+        MarkerArrayPub(ros::NodeHandle &nh, std::string topic, float resolution) : nh(nh),
                                                                                   msg(new visualization_msgs::MarkerArray),
                                                                                   topic(topic),
                                                                                   resolution(resolution),
