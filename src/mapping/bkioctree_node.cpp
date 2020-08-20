@@ -40,9 +40,15 @@ namespace semantic_bki {
       classified = true;
       for (int i = 0; i < num_class; ++i){
         if (spatiotemporal){
-          ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
+          if (i == 0)
+            ms[i] = exp( -vbars[i] * vbars[i])
+                    * ms[i] + ybars[i];
+          else{
+              ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
                     * ms[i] +  ybars[i];
-          flow[i] =  vbars[i]; 
+              flow[i] = vbars[i];
+          }
+              //flow[i] = 0.75 * vbars[i] + 0.25 * flow[i]; 
         }
         else
           ms[i] += ybars[i];

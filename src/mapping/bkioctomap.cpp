@@ -260,7 +260,7 @@ namespace semantic_bki {
 
 
 
-    void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, 
+    void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
                                                 const PCParams *train_params, const ScanStep create_id) {
 
 #ifdef DEBUG
@@ -271,6 +271,8 @@ namespace semantic_bki {
         /////////////////////////////////////////////////
         GPPointCloud xy;
         get_training_data(cloud, origin, train_params, xy);
+        double robot_motion = displacement.norm();
+        double train_flow;
 #ifdef DEBUG
         Debug_Msg("Training data size: " << xy.size());
 #endif
@@ -316,11 +318,17 @@ namespace semantic_bki {
                 continue;
 
             vector<float> block_x, block_v, block_y;
+            
             for (auto it = block_xy.cbegin(); it != block_xy.cend(); ++it) {
                 block_x.push_back(it->first.x());
                 block_x.push_back(it->first.y());
                 block_x.push_back(it->first.z());
-                block_v.push_back(it->first.flow_norm());
+                train_flow = it->first.flow_norm();
+                block_v.push_back(train_flow);
+                // if (train_flow > robot_motion)
+                //     block_v.push_back(train_flow);
+                // else
+                //     block_v.push_back(0.0)
                 block_y.push_back(it->second); //label
             
             

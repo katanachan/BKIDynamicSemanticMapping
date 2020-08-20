@@ -52,7 +52,7 @@ static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen:
     */
     static bool is_data_valid(const semantic_bki::point3f &origin_prev, 
                     const semantic_bki::point3f &origin_now){
-            std::cout << "Displacement between scans" << origin_now - origin_prev << std::endl;
+            //std::cout << "Displacement between scans" << origin_now - origin_prev << std::endl;
             if ((origin_prev - origin_now).norm() > 0.5)
                 return false;
             else
@@ -70,7 +70,8 @@ static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen:
     }
 
 static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::MarkerArrayPub &v_pub,
-        const semantic_bki::SemanticBKIOctoMap &map, const int num_class = 4){
+        const semantic_bki::SemanticBKIOctoMap &map, const semantic_bki::point3f &origin,
+        const int num_class = 4){
 
     m_pub.clear_map(0);
     v_pub.clear_map(0);
@@ -92,6 +93,7 @@ static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::Marke
 		          min_var = vars[semantics];
         }
     }
+    m_pub.insert_point3d_semantics(origin.x(), origin.y(), origin.z(), 0.2 , 4, 0);
     m_pub.publish();
     v_pub.publish();
     std::cout << "max_var: " << max_var << std::endl;
@@ -120,9 +122,12 @@ static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeH
         load_pcd(filename, origin, rot, cloud);
         if (is_rotation_valid(rot, prev_rot) && is_data_valid(origin, prev_origin)){
         //if (is_data_valid(origin, prev_origin)){
-            map.insert_pointcloud(prev_cloud, prev_origin, 
+        //if (true){
+            map.insert_pointcloud(prev_cloud, prev_origin, (origin - prev_origin), 
                                 train_params, (semantic_bki::ScanStep) scan_id);
             ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
+            publish_map(m_pub, v_pub, map, prev_origin, mparams->num_classes); // we only need to 
+            //publish if the map is updated
         }
         else
             ROS_INFO_STREAM("Scan " << scan_id - 1 << " discarded");
@@ -130,8 +135,6 @@ static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeH
         prev_cloud = cloud; //transfer loaded cloud as previous cloud to be inserted in later
         prev_rot = rot;  
 
-        
-        publish_map(m_pub, v_pub, map, mparams->num_classes);
     }
 
 

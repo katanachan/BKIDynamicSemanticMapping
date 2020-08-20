@@ -62,7 +62,7 @@ namespace semantic_bki {
           assert(xs.size() % dim == 0);
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
           assert(trained == true);
-          MatrixKType Ks, Kv;
+          MatrixKType Ks, Kv, Ki;
           covSparse(_xs, x, Ks);
           
           if (temporal){
@@ -70,7 +70,8 @@ namespace semantic_bki {
             // here and simply multiply the velocities
             // voxel centroids vs training points
             covMaterniso3(_xs, x, Kv);
-            //covCountingSensorModel(_xs, x, Kv);
+            covSparse(_xs, x, Ki, 0.1, 10000);
+            //covCountingSensorModel(_xs, x, Ki);
             //covGaussian(_xs, x, Kv);
           }
           vbars.resize(_xs.rows());
@@ -84,10 +85,13 @@ namespace semantic_bki {
 
           MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
           MatrixYType _v_vec = Eigen::Map<const MatrixYType>(v.data(), v.size(), 1);
+
+          
           for (int k = 0; k < nc; ++k) {
               for (int i = 0; i < y_vec.size(); ++i) {
                 if (y_vec[i] == k){
                   _y_vec(i, 0) = 1;
+
                   if (temporal)
                     _v_vec(i, 0) = v(i, 0);
                 }
@@ -100,15 +104,26 @@ namespace semantic_bki {
             
               MatrixYType _ybar, _vbar;
               _ybar = (Ks * _y_vec);
-              if (temporal){
-                _vbar = (Kv * _v_vec);
+              // if (temporal)
+              //   _vbar = (Kv * _v_vec);
+              if (temporal && k != 0){
+               _vbar = (Kv * _v_vec);
               }
+              else if (temporal && k == 0)
+                _vbar =  (Ki * v) ;
               
             
               for (int r = 0; r < _ybar.rows(); ++r){
                 ybars[r][k] = _ybar(r, 0);
-                if (temporal)
-                  vbars[r][k] = _vbar(r, 0) / _y_vec.size(); // compute the average velocity around that area
+                if (temporal){
+                  if (k % 2 == 0)
+                    vbars[r][k] = _vbar(r, 0);// / _y_vec.size();
+                   else
+                     vbars[r][k] = 0;
+                  // vbars[r][k] = _vbar(r, 0);// /_y_vec.size(); // compute the average velocity around that area
+                  // if (k == 0 && _vbar(r, 0) > 0.1)
+                  // std::cout << "Velocity is:" << vbars[r][k] << std::endl;
+                }
 
               }
 
@@ -185,6 +200,18 @@ namespace semantic_bki {
         }
 
         /*
+         * @brief Custom Matern3 kernel.
+         * @param x input vector
+         * @param z input vector
+         * @return Kxz covariance matrix
+         */
+        void covMaterniso3(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz,
+                           const float ell_in, const float sf2_in) const {
+            dist(1.73205 / ell_in * x, 1.73205 / ell_in * z, Kxz);
+            Kxz = ((1 + Kxz.array()) * exp(-Kxz.array())).matrix() * sf2_in;
+        }
+
+        /*
          * \brief Gaussian kernel.
          * @param x input vector
          * @param z input vector
@@ -193,6 +220,31 @@ namespace semantic_bki {
         void covGaussian(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz) const {
             dist(x, z, Kxz);
             Kxz = exp((1 / (sf2*sf2)) * -Kxz.array().pow(2)).matrix();
+        }
+
+        /*
+         * @brief Custom Sparse kernel.
+         * @param x input vector
+         * @param z input vector
+         * @param ell_in kernel length_scale
+         * @param sf2_in kernel scale
+         * @return Kxz covariance matrix
+         * @ref A sparse covariance function for exact gaussian process inference in large datasets.
+         */
+        void covSparse(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz,
+                       const float ell_in, const float sf2_in) const {
+            dist(x / ell_in, z / ell_in, Kxz);
+            Kxz = (((2.0f + (Kxz * 2.0f * 3.1415926f).array().cos()) * (1.0f - Kxz.array()) / 3.0f) +
+                  (Kxz * 2.0f * 3.1415926f).array().sin() / (2.0f * 3.1415926f)).matrix() * sf2_in;
+
+            // Clean up for values with distance outside length scale
+            // Possible because Kxz <= 0 when dist >= ell
+            for (int i = 0; i < Kxz.rows(); ++i)
+            {
+                for (int j = 0; j < Kxz.cols(); ++j)
+                    if (Kxz(i,j) < 0.0)
+                        Kxz(i,j) = 0.0f;
+            }
         }
 
         /*

@@ -128,7 +128,7 @@ namespace semantic_bki {
                                const PCParams *train_params, const ScanStep create_id = 0);
 
 
-        void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, 
+        void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
                                 const PCParams *train_params, const ScanStep create_id = 0);
 
         //void insert_training_data(const GPPointCloud &cloud);
