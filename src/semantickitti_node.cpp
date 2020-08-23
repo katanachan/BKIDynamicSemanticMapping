@@ -2,7 +2,6 @@
 #include <iostream>
 #include <ros/ros.h>
 
-#include "bkioctomap.h"
 #include "markerarray_pub.h"
 #include "semantickitti_util.h"
 
@@ -24,7 +23,23 @@ int main(int argc, char **argv) {
     double ds_resolution = 0.1;
     int scan_num = 0;
     double max_range = -1;
-    
+    semantic_bki::MapParams *mparams = new semantic_bki::MapParams{
+                                    0.1, 4, 2, //resolution, block_depth, num_classes 
+                                    
+                                    1.0, 1.0, 1.0f, //sf2, ell, prior 
+
+                                    0.2, 0.2, // flow_sf2, flow_ell
+
+                                    1.0f, 0.3, 0.7, //var_thresh, free_thresh, occupied_thresh
+
+                                    false, //spatiotemporal,
+
+                                    {1, 2, 3, 4, 5, 6, 7, 8} // dynamic classes
+                                    };
+    semantic_bki::PCParams *train_params = new semantic_bki::PCParams{0.1, 0.5, -1};
+    //ds_resolution, free_resolution, max_range
+    bool spatial = false;
+
     // SemanticKITTI
     std::string dir;
     std::string input_data_prefix;
@@ -35,19 +50,28 @@ int main(int argc, char **argv) {
     bool query = false;
     bool visualize = false;
 
-    nh.param<int>("block_depth", block_depth, block_depth);
-    nh.param<double>("sf2", sf2, sf2);
-    nh.param<double>("ell", ell, ell);
-    nh.param<float>("prior", prior, prior);
-    nh.param<float>("var_thresh", var_thresh, var_thresh);
-    nh.param<double>("free_thresh", free_thresh, free_thresh);
-    nh.param<double>("occupied_thresh", occupied_thresh, occupied_thresh);
-    nh.param<double>("resolution", resolution, resolution);
-    nh.param<int>("num_class", num_class, num_class);
-    nh.param<double>("free_resolution", free_resolution, free_resolution);
-    nh.param<double>("ds_resolution", ds_resolution, ds_resolution);
+    nh.param<int>("block_depth", mparams->block_depth, mparams->block_depth);
+    nh.param<double>("sf2", mparams->sf2, mparams->sf2);
+    nh.param<double>("ell", mparams->ell, mparams->ell);
+    nh.param<float>("prior", mparams->prior, mparams->prior);
+
+    nh.param<float>("flow_sf2", mparams->flow_sf2, mparams->flow_sf2);
+    nh.param<float>("flow_ell", mparams->flow_ell, mparams->flow_ell);
+    
+    
+    nh.param<float>("var_thresh", mparams->var_thresh, mparams->var_thresh);
+    nh.param<double>("free_thresh", mparams->free_thresh, mparams->free_thresh);
+    nh.param<double>("occupied_thresh", mparams->occupied_thresh, mparams->occupied_thresh);
+    
+    nh.param<double>("resolution", mparams->resolution, mparams->resolution);
+    nh.param<int>("num_class", mparams->num_classes, mparams->num_classes);
+    nh.param<double>("free_resolution", train_params->free_resolution, train_params->free_resolution);
+    nh.param<double>("ds_resolution", train_params->ds_resolution, train_params->ds_resolution);
     nh.param<int>("scan_num", scan_num, scan_num);
-    nh.param<double>("max_range", max_range, max_range);
+    nh.param<double>("max_range", train_params->max_range, train_params->max_range);
+
+    nh.param<bool>("show_spatial", spatial, spatial);
+    nh.getParam("moving_classes", mparams->dynamic);
 
     // SemanticKITTI
     nh.param<std::string>("dir", dir, dir);
@@ -61,18 +85,18 @@ int main(int argc, char **argv) {
 
     ROS_INFO_STREAM("Parameters:" << std::endl <<
       "block_depth: " << block_depth << std::endl <<
-      "sf2: " << sf2 << std::endl <<
-      "ell: " << ell << std::endl <<
-      "prior:" << prior << std::endl <<
-      "var_thresh: " << var_thresh << std::endl <<
-      "free_thresh: " << free_thresh << std::endl <<
-      "occupied_thresh: " << occupied_thresh << std::endl <<
-      "resolution: " << resolution << std::endl <<
-      "num_class: " << num_class << std::endl << 
-      "free_resolution: " << free_resolution << std::endl <<
-      "ds_resolution: " << ds_resolution << std::endl <<
-      "scan_num: " << scan_num << std::endl <<
-      "max_range: " << max_range << std::endl <<
+      "sf2: " << mparams->sf2 << std::endl <<
+      "ell: " << mparams->ell << std::endl <<
+      "prior: " << mparams->prior << std::endl <<
+      "var_thresh: " << mparams->var_thresh << std::endl <<
+      "free_thresh: " << mparams->free_thresh << std::endl <<
+      "occupied_thresh: " << mparams->occupied_thresh << std::endl <<
+      "resolution: " << mparams->resolution << std::endl <<
+      "num_class: " << mparams->num_classes << std::endl <<
+      "free_resolution: " << train_params->free_resolution << std::endl <<
+      "ds_resolution: " << train_params->ds_resolution << std::endl <<
+      "scan_sum: " << scan_num << std::endl <<
+      "max_range: " << train_params->max_range << std::endl << 
 
       "SemanticKITTI:" << std::endl <<
       "dir: " << dir << std::endl <<
@@ -87,10 +111,13 @@ int main(int argc, char **argv) {
 
     
     ///////// Build Map /////////////////////
-    SemanticKITTIData semantic_kitti_data(nh, resolution, block_depth, sf2, ell, num_class, free_thresh, occupied_thresh, var_thresh, ds_resolution, free_resolution, max_range, map_topic, prior);
+    SemanticKITTIData semantic_kitti_data(nh, mparams, train_params, map_topic);
     semantic_kitti_data.read_lidar_poses(dir + '/' + lidar_pose_file);
     semantic_kitti_data.set_up_evaluation(dir + '/' + gt_label_prefix, dir + '/' + evaluation_result_prefix);
     semantic_kitti_data.process_scans(dir + '/' + input_data_prefix, dir + '/' + input_label_prefix, scan_num, query, visualize);
+
+    delete mparams;
+    delete train_params;
 
     ros::spin();
     return 0;

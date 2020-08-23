@@ -19,10 +19,11 @@ namespace semantic_bki {
         using MatrixDKType = Eigen::Matrix<T, -1, 1>;
         using MatrixYType = Eigen::Matrix<T, -1, 1>;
 
-        SemanticBKInference(int nc, bool temporal_in, KernelParams &params) : nc(nc), sf2(params.sf2), 
+        SemanticBKInference(int nc, bool temporal_in, KernelParams &params, std::vector<bool> dynamic_in) : 
+                            nc(nc), sf2(params.sf2), 
                             ell(params.ell), flow_ell(params.flow_ell),
                             flow_sf2(params.flow_sf2), temporal(temporal_in),
-                            trained(false) { }
+                            dynamic(dynamic_in), trained(false) { }
 
         /*
          * @brief Fit BGK Model
@@ -116,8 +117,8 @@ namespace semantic_bki {
               for (int r = 0; r < _ybar.rows(); ++r){
                 ybars[r][k] = _ybar(r, 0);
                 if (temporal){
-                  if (k % 2 == 0)
-                    vbars[r][k] = _vbar(r, 0);// / _y_vec.size();
+                  if (dynamic[k])
+                    vbars[r][k] = _vbar(r, 0) / _y_vec.size();
                    else
                      vbars[r][k] = 0;
                   // vbars[r][k] = _vbar(r, 0);// /_y_vec.size(); // compute the average velocity around that area
@@ -286,6 +287,7 @@ namespace semantic_bki {
         MatrixYType y;   // temporary storage of training labels
         MatrixYType v; // temporary storage for flow of training data
         std::vector<T> y_vec;
+        const std::vector<bool> dynamic; // a vector of the size nc that denotes whether a class is likely to be dynamic
 
         bool trained;    // true if bgkinference stored training data
     };

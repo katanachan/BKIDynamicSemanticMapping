@@ -24,6 +24,23 @@ namespace semantic_bki{
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     } EIGEN_ALIGN16;
 
+    struct XYZLGT{
+        PCL_ADD_POINT4D;
+        int label;
+        int gt;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    } EIGEN_ALIGN16;
+
+    struct XYZFlowLGT{
+        PCL_ADD_POINT4D;
+        float vx;
+        float vy;
+        float vz;
+        int label;
+        int gt;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    } EIGEN_ALIGN16;
+
 }
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZFlowL,           // here we assume a XYZ + "test" (as fields)
@@ -36,11 +53,34 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZFlowL,           // here we 
 				                (int, label, label)
 				                ) 
     //declared inside namespace, defined outside namespace.
+POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZFlowLGT,     
+                                (float, x, x)
+                                (float, y, y)
+                                (float, z, z)
+                                (float, vx, vx)
+				                (float, vy, vy)
+				                (float, vz, vz)
+				                (int, label, label)
+                                (int, gt, gt)
+				                ) 
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZLGT,     
+                                (float, x, x)
+                                (float, y, y)
+                                (float, z, z)
+				                (int, label, label)
+                                (int, gt, gt)
+				                ) 
 
 namespace semantic_bki{
     typedef XYZFlowL PCLPointType;
 
+
     typedef pcl::PointCloud<XYZFlowL> PCLPointCloud;
+
+    typedef pcl::PointCloud<XYZLGT> SKittiTrainPC;
+    typedef XYZLGT SKittiPointType; 
+    //typedef pcl::PointCloud<XYZFlowGT>
 
     // // PCL PointCloud types as input
     // typedef pcl::PointXYZL PCLPointType;

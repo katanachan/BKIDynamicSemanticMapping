@@ -45,6 +45,7 @@ namespace semantic_bki {
         double occupied_thresh;
 
         bool spatiotemporal;
+        std::vector<int> dynamic;
     };
 
 
@@ -97,7 +98,8 @@ namespace semantic_bki {
                 const float var_thresh,
                 const float free_thresh,
                 const float occupied_thresh,
-                const bool spatiotemporal);
+                const bool spatiotemporal,
+                const std::vector<int> &dynamic);
         
         SemanticBKIOctoMap(const MapParams *params);
 
@@ -432,6 +434,7 @@ namespace semantic_bki {
         MyRTree rtree;
         //Added by Shwarya
         bool spatiotemporal; //spatial mapping if false, spatiotemporal if true
+        std::vector<bool> is_dynamic;
     };
 
 }

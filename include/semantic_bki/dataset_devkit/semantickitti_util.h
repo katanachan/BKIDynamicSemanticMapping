@@ -7,31 +7,41 @@
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 
-#include <pcl/common/transforms.h>
-#include <pcl/io/pcd_io.h>
+#include "flow_point_types.h"
+#include "bkioctomap.h"
 
 class SemanticKITTIData {
   public:
     SemanticKITTIData(ros::NodeHandle& nh,
-             double resolution, double block_depth,
-             double sf2, double ell,
-             int num_class, double free_thresh,
-             double occupied_thresh, float var_thresh, 
-	           double ds_resolution,
-             double free_resolution, double max_range,
-             std::string map_topic,
-             float prior)
+             const semantic_bki::MapParams *map_params,
+             const semantic_bki::PCParams *pc_train_params,
+             const std::string &map_topic
+             )
+        // SemanticKITTIData(ros::NodeHandle& nh,
+        //      double resolution, double block_depth,
+        //      double sf2, double ell,
+        //      int num_class, double free_thresh,
+        //      double occupied_thresh, float var_thresh, 
+	      //      double ds_resolution,
+        //      double free_resolution, double max_range,
+        //      std::string map_topic,
+        //      float prior)
       : nh_(nh)
-      , resolution_(resolution)
-      , ds_resolution_(ds_resolution)
-      , free_resolution_(free_resolution)
-      , max_range_(max_range) {
-        map_ = new semantic_bki::SemanticBKIOctoMap(resolution, block_depth, num_class, sf2, ell, prior, var_thresh, free_thresh, occupied_thresh);
-        m_pub_ = new semantic_bki::MarkerArrayPub(nh_, map_topic, resolution);
+      , resolution_(map_params->resolution)
+      , train_params( new semantic_bki::PCParams)
+       {
+        map_ = new semantic_bki::SemanticBKIOctoMap(map_params);
+        // map_ = new semantic_bki::SemanticBKIOctoMap(resolution, block_depth, num_class,
+        //                    sf2, ell, prior, var_thresh, free_thresh, occupied_thresh);
+        m_pub_ = new semantic_bki::MarkerArrayPub(nh_, map_topic, resolution_);
       	init_trans_to_ground_ << 1, 0, 0, 0,
                                  0, 0, 1, 0,
                                  0,-1, 0, 1,
                                  0, 0, 0, 1;
+
+        train_params->max_range = pc_train_params->max_range;
+        train_params->ds_resolution = pc_train_params->ds_resolution;
+        train_params->free_resolution = pc_train_params->free_resolution;
       }
 
     bool read_lidar_poses(const std::string lidar_pose_name) {
@@ -59,14 +69,22 @@ class SemanticKITTIData {
       }
     } 
 
-    bool process_scans(std::string input_data_dir, std::string input_label_dir, int scan_num, bool query, bool visualize) {
+    bool process_scans(std::string input_data_dir, std::string input_label_dir, 
+                        int scan_num, bool query, bool visualize) {
       semantic_bki::point3f origin;
       for (int scan_id  = 0; scan_id < scan_num; ++scan_id) {
         char scan_id_c[256];
         sprintf(scan_id_c, "%06d", scan_id);
         std::string scan_name = input_data_dir + std::string(scan_id_c) + ".bin";
         std::string label_name = input_label_dir + std::string(scan_id_c) + ".label";
-        pcl::PointCloud<pcl::PointXYZL>::Ptr cloud = kitti2pcl(scan_name, label_name);
+        std::string gt_name = gt_label_dir_ + std::string(scan_id_c) + ".label";
+        //pcl::PointCloud<pcl::PointXYZL>::Ptr cloud = kitti2pcl(scan_name, label_name);
+        semantic_bki::SKittiTrainPC::Ptr cloud = kitti2pclwithgt(scan_name, label_name, gt_name);
+        // pcl::PCLPointCloud2::Ptr cloud2(new pcl::PCLPointCloud2);
+        // semantic_bki::PCLPointCloud::Ptr cloud(new semantic_bki::PCLPointCloud);
+        // std::string filename = input_data_dir + "multi_tb3_home_" + std::to_string(scan_id) + ".pcd";
+        // pcl::io::loadPCDFile(filename, *cloud2);
+        // pcl::fromPCLPointCloud2(*cloud2, *cloud);
         Eigen::Matrix4d transform = lidar_poses_[scan_id];
         Eigen::Matrix4d calibration;
         
@@ -93,13 +111,16 @@ class SemanticKITTIData {
         origin.x() = transform(0, 3);
         origin.y() = transform(1, 3);
         origin.z() = transform(2, 3);
-        map_->insert_pointcloud(*cloud, origin, ds_resolution_, free_resolution_, max_range_);
+        //note: Shwarya, don't forget to NOT transform in the non-data collection phase.
+        //Reorganize this code later
+        // map_->insert_pointcloud(*cloud, origin, origin, this->train_params, (semantic_bki::ScanStep) scan_id);
         std::cout << "Inserted point cloud at " << scan_name << std::endl;
-        
-        if (query) {
-          for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id)
-          query_scan(input_data_dir, query_id);
-        }
+        std::string file_name = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
+        pcl::io::savePCDFileASCII(file_name, *cloud);
+      //   if (query) {
+      //     for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id)
+      //     query_scan(input_data_dir, query_id);
+      //   }
 
         if (visualize)
 	        publish_map();
@@ -112,7 +133,8 @@ class SemanticKITTIData {
       for (auto it = map_->begin_leaf(); it != map_->end_leaf(); ++it) {
         if (it.get_node().get_state() == semantic_bki::State::OCCUPIED) {
           semantic_bki::point3f p = it.get_loc();
-          m_pub_->insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), it.get_node().get_semantics(), 2);
+          m_pub_->insert_point3d_semantics(p.x(), p.y(), p.z(), it.get_size(), 
+                                      it.get_node().get_semantics(), 2);
         }
       }
       m_pub_->publish();
@@ -170,9 +192,7 @@ class SemanticKITTIData {
   private:
     ros::NodeHandle nh_;
     double resolution_;
-    double ds_resolution_;
-    double free_resolution_;
-    double max_range_;
+    semantic_bki::PCParams *train_params;
     semantic_bki::SemanticBKIOctoMap* map_;
     semantic_bki::MarkerArrayPub* m_pub_;
     ros::Publisher color_octomap_publisher_;
@@ -188,6 +208,49 @@ class SemanticKITTIData {
         if (element == vec_check[i])
           return i;
       return -1;
+    }
+
+    semantic_bki::SKittiTrainPC::Ptr kitti2pclwithgt(std::string fn, std::string fn_label,
+                                  std::string gtruth_label) {
+      FILE* fp_label = std::fopen(fn_label.c_str(), "r");
+      if (!fp_label) {
+        std::perror("File opening failed");
+      }
+      FILE* gt_label = std::fopen(gtruth_label.c_str(), "r");
+      if (!gt_label)
+        std::perror("File opening failed");
+      
+      std::fseek(fp_label, 0L, SEEK_END);
+      std::rewind(fp_label);
+
+      std::fseek(gt_label, 0L, SEEK_END);
+      std::rewind(gt_label);
+      
+      FILE* fp = std::fopen(fn.c_str(), "r");
+      if (!fp) {
+        std::perror("File opening failed");
+      }
+      std::fseek(fp, 0L, SEEK_END);
+      size_t sz = std::ftell(fp);
+      std::rewind(fp);
+
+      int n_hits = sz / (sizeof(float) * 4);
+      semantic_bki::SKittiTrainPC::Ptr pc(new semantic_bki::SKittiTrainPC);
+      for (int i = 0; i < n_hits; i++) {
+        semantic_bki::SKittiPointType point;
+        float intensity;
+        if (fread(&point.x, sizeof(float), 1, fp) == 0) break;
+        if (fread(&point.y, sizeof(float), 1, fp) == 0) break;
+        if (fread(&point.z, sizeof(float), 1, fp) == 0) break;
+        if (fread(&intensity, sizeof(float), 1, fp) == 0) break;
+        if (fread(&point.label, sizeof(float), 1, fp_label) == 0) break;
+        if (fread(&point.gt, sizeof(float), 1, gt_label) == 0) break;
+        pc->push_back(point);
+      }
+      std::fclose(fp);
+      std::fclose(fp_label);
+      std::fclose(gt_label);
+      return pc;
     }
 
     pcl::PointCloud<pcl::PointXYZL>::Ptr kitti2pcl(std::string fn, std::string fn_label) {

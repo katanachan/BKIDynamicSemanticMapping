@@ -403,7 +403,7 @@ namespace semantic_bki {
         typedef pcl::PointXYZ PointType;
         typedef pcl::PointCloud<PointType> PointCloud;
     public:
-        MarkerArrayPub(ros::NodeHandle &nh, std::string topic, float resolution) : nh(nh),
+        MarkerArrayPub(ros::NodeHandle &nh, const std::string topic, const float resolution) : nh(nh),
                                                                                   msg(new visualization_msgs::MarkerArray),
                                                                                   topic(topic),
                                                                                   resolution(resolution),
@@ -428,7 +428,8 @@ namespace semantic_bki {
             }
         }
 
-        void insert_point3d(float x, float y, float z, float min_z, float max_z, float size) {
+        void insert_point3d(const float x, const float y, const float z, const float min_z,
+                            const float max_z, const float size) {
             geometry_msgs::Point center;
             center.x = x;
             center.y = y;
@@ -445,7 +446,7 @@ namespace semantic_bki {
             }
         }
 
-        void clear_map(float size) {
+        void clear_map(const float size) {
           int depth = 0;
           if (size > 0)
             depth = (int) log2(size / 0.1);
@@ -454,7 +455,8 @@ namespace semantic_bki {
           msg->markers[depth].colors.clear();
         }
 
-        void insert_point3d_semantics(float x, float y, float z, float size, int c, int dataset) {
+        void insert_point3d_semantics(const float x, const float y, const float z, const float size, 
+                                      const int c, const int dataset) {
             geometry_msgs::Point center;
             center.x = x;
             center.y = y;
@@ -477,7 +479,8 @@ namespace semantic_bki {
             }
         }
 
-        void insert_point3d_variance(float x, float y, float z, float min_v, float max_v, float size, float var) {
+        void insert_point3d_variance(const float x, const float y, const float z, const float min_v, 
+                                    const float max_v, const float size, const float var) {
             geometry_msgs::Point center;
             center.x = x;
             center.y = y;
@@ -487,15 +490,16 @@ namespace semantic_bki {
             if (size > 0)
                     depth = (int) log2(size / 0.1);
 
-            float middle = (max_v + min_v) / 2;
-            var = (var - middle) / (middle - min_v);
+            const float middle = (max_v + min_v) / 2;
+            const float vari = (var - middle) / (middle - min_v);
             //std::cout << var << std::endl; 
             msg->markers[depth].points.push_back(center);
-            msg->markers[depth].colors.push_back(JetMapColor(var));
+            msg->markers[depth].colors.push_back(JetMapColor(vari));
 
         }
 
-        void insert_point3d(float x, float y, float z, float min_z, float max_z) {
+        void insert_point3d(const float x, const float y, const float z, 
+                        const float min_z, const float max_z) {
             insert_point3d(x, y, z, min_z, max_z, -1.0f);
         }
 
@@ -503,7 +507,8 @@ namespace semantic_bki {
             insert_point3d(x, y, z, 1.0f, 0.0f, -1.0f);
         }
 
-        void insert_color_point3d(float x, float y, float z, double min_v, double max_v, double v) {
+        void insert_color_point3d(const float x, const float y, const float z, 
+                                  const double min_v, const double max_v, const double v) {
             geometry_msgs::Point center;
             center.x = x;
             center.y = y;

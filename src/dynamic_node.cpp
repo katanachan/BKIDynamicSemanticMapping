@@ -86,7 +86,8 @@ static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::Marke
                             semantics, 0); //data -> marker
             std::vector<float> vars(num_class);
             it.get_node().get_vars(vars);
-            v_pub.insert_point3d_variance(p.x(), p.y(), p.z(), min_var, max_var, it.get_size(), vars[semantics]);
+            v_pub.insert_point3d_variance(p.x(), p.y(), p.z(), min_var, max_var,
+                                         it.get_size(), vars[semantics]);
             if (vars[semantics] > max_var)
 		          max_var = vars[semantics];
 		        if (vars[semantics] < min_var)
@@ -155,14 +156,18 @@ int main(int argc, char **argv) {
     bool spatial = false;
     
     semantic_bki::PCParams *train_params = new semantic_bki::PCParams{0.1, 0.5, -1}; //ds_resolution, free_resolution, max_range
-    semantic_bki::MapParams *mparams = new semantic_bki::MapParams{0.1, 4, 2, //resolution, block_depth, num_classes 
+    semantic_bki::MapParams *mparams = new semantic_bki::MapParams{
+                                    0.1, 4, 2, //resolution, block_depth, num_classes 
+                                    
                                     1.0, 1.0, 1.0f, //sf2, ell, prior 
 
                                     0.2, 0.2, // flow_sf2, flow_ell
 
                                     1.0f, 0.3, 0.7, //var_thresh, free_thresh, occupied_thresh
 
-                                    false //spatiotemporal
+                                    false, //spatiotemporal
+
+                                    {2} // only dynamic class the robot
                                     };
 
 

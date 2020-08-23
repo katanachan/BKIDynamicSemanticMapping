@@ -28,7 +28,8 @@ namespace semantic_bki {
                                         1.0f, // var_thresh
                                         0.3f, // free_thresh
                                         0.7f, // occupied_thresh
-                                        false
+                                        false, //spatial
+                                        std::vector<int> () // empty vector
                                     ) { }
     SemanticBKIOctoMap::SemanticBKIOctoMap(const MapParams *params) : SemanticBKIOctoMap(params->resolution, // resolution
                                         params->block_depth,
@@ -41,7 +42,8 @@ namespace semantic_bki {
                                         params->var_thresh, // var_thresh
                                         params->free_thresh,
                                         params->occupied_thresh, // occupied_thresh
-                                        params->spatiotemporal
+                                        params->spatiotemporal, // are we trying to do spatial or spatiotemporal?
+                                        params->dynamic
                                     ) { }
 
     SemanticBKIOctoMap::SemanticBKIOctoMap(const float resolution,
@@ -55,7 +57,8 @@ namespace semantic_bki {
                         const float var_thresh,
                         const float free_thresh,
                         const float occupied_thresh,
-                        const bool spatiotemporal_in)
+                        const bool spatiotemporal_in,
+                        const std::vector<int> &dynamic_in)
             : resolution(resolution), block_depth(block_depth),
               block_size((float) pow(2, block_depth - 1) * resolution),
               spatiotemporal(spatiotemporal_in) {
@@ -81,6 +84,12 @@ namespace semantic_bki {
         SemanticOcTreeNode::var_thresh = var_thresh;
         SemanticOcTreeNode::free_thresh = free_thresh;
         SemanticOcTreeNode::occupied_thresh = occupied_thresh;
+
+        is_dynamic = std::vector<bool> (num_class, false);
+        is_dynamic[0] = true; // free space needs to be decayed as well
+        for (auto const &dyn_idx: dynamic_in)
+            is_dynamic[dyn_idx] = true;
+
     }
 
     SemanticBKIOctoMap::~SemanticBKIOctoMap() {
@@ -181,7 +190,8 @@ namespace semantic_bki {
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, SemanticOcTreeNode::kp);
+            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal,
+                                                 SemanticOcTreeNode::kp, is_dynamic);
             bgk->train(block_x, block_y);
             //stores the training points into an Inference instance.
             bgk->store_flow(block_v);
@@ -335,7 +345,8 @@ namespace semantic_bki {
             //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, SemanticOcTreeNode::kp);
+            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, 
+                                                   SemanticOcTreeNode::kp, is_dynamic);
             bgk->train(block_x, block_y);
             bgk->store_flow(block_v);
 #ifdef OPENMP

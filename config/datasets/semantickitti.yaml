@@ -2,14 +2,14 @@
 
 # Map information
 resolution: 0.3
-num_class: 20 # Number of classes
+num_class: 2 #20 # Number of classes
 
 # Sampling resolutions
 free_resolution: 100 # Free space sampling resolution
 ds_resolution: 0.1 # Downsampling factor
 
 # Information about range-finder data
-scan_num: 100 # How many scans to use
+scan_num: 271 # How many scans to use
 max_range: -1 # Sensor max range (m)
 
 # Dataset information
@@ -20,3 +20,6 @@ gt_label_prefix: labels/
 evaluation_result_prefix: evaluations/
 query: true
 visualize: true
+
+#Dynamic class information
+moving_classes: [1, 2, 3, 4, 5, 6, 7, 8]
