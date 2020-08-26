@@ -71,20 +71,20 @@ class SemanticKITTIData {
 
     bool process_scans(std::string input_data_dir, std::string input_label_dir, 
                         int scan_num, bool query, bool visualize) {
-      semantic_bki::point3f origin;
-      for (int scan_id  = 0; scan_id < scan_num; ++scan_id) {
+      semantic_bki::point3f origin, prev_origin;
+      for (int scan_id  = 1; scan_id < scan_num; ++scan_id) {
         char scan_id_c[256];
         sprintf(scan_id_c, "%06d", scan_id);
         std::string scan_name = input_data_dir + std::string(scan_id_c) + ".bin";
-        std::string label_name = input_label_dir + std::string(scan_id_c) + ".label";
-        std::string gt_name = gt_label_dir_ + std::string(scan_id_c) + ".label";
-        //pcl::PointCloud<pcl::PointXYZL>::Ptr cloud = kitti2pcl(scan_name, label_name);
-        semantic_bki::SKittiTrainPC::Ptr cloud = kitti2pclwithgt(scan_name, label_name, gt_name);
-        // pcl::PCLPointCloud2::Ptr cloud2(new pcl::PCLPointCloud2);
-        // semantic_bki::PCLPointCloud::Ptr cloud(new semantic_bki::PCLPointCloud);
-        // std::string filename = input_data_dir + "multi_tb3_home_" + std::to_string(scan_id) + ".pcd";
-        // pcl::io::loadPCDFile(filename, *cloud2);
-        // pcl::fromPCLPointCloud2(*cloud2, *cloud);
+        // std::string label_name = input_label_dir + std::string(scan_id_c) + ".label";
+        // std::string gt_name = gt_label_dir_ + std::string(scan_id_c) + ".label";
+        // //pcl::PointCloud<pcl::PointXYZL>::Ptr cloud = kitti2pcl(scan_name, label_name);
+        // semantic_bki::SKittiTrainPC::Ptr cloud = kitti2pclwithgt(scan_name, label_name, gt_name);
+        pcl::PCLPointCloud2::Ptr cloud2(new pcl::PCLPointCloud2);
+        semantic_bki::PCLPointCloud::Ptr cloud(new semantic_bki::PCLPointCloud);
+        std::string filename = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
+        pcl::io::loadPCDFile(filename, *cloud2);
+        pcl::fromPCLPointCloud2(*cloud2, *cloud);
         Eigen::Matrix4d transform = lidar_poses_[scan_id];
         Eigen::Matrix4d calibration;
         
@@ -107,23 +107,36 @@ class SemanticKITTIData {
        	                 0                ,  0                ,  0                ,  1.000000000000000;
 	      
         Eigen::Matrix4d new_transform = init_trans_to_ground_ * transform * calibration;
-        pcl::transformPointCloud (*cloud, *cloud, new_transform);
-        origin.x() = transform(0, 3);
-        origin.y() = transform(1, 3);
-        origin.z() = transform(2, 3);
+        Eigen::Matrix4d pose_transform = init_trans_to_ground_ * transform;
+        //pcl::transformPointCloud (*cloud, *cloud, new_transform);
+        origin.x() = pose_transform(0, 3);
+        origin.y() = pose_transform(1, 3);
+        origin.z() = pose_transform(2, 3);
+
         //note: Shwarya, don't forget to NOT transform in the non-data collection phase.
         //Reorganize this code later
-        // map_->insert_pointcloud(*cloud, origin, origin, this->train_params, (semantic_bki::ScanStep) scan_id);
+         if (scan_id != 1){
+           std::cout << "Displacement is:" << origin - prev_origin << std::endl;
+           map_->insert_pointcloud(*cloud, origin, origin - prev_origin, this->train_params, (semantic_bki::ScanStep) scan_id);
+        //   std::cout << "Robot's position is:" << origin << std::endl;
+        //   std::cout << "Robot's previous position is:" << prev_origin << std::endl;
+        //   std::cout << "Dummy transform is:" << dummy << std::endl;
+        //   std::cout << "Pose attempt #3 is:" << pose_or << std::endl;
+        }
+        else
+          map_->insert_pointcloud(*cloud, origin, origin, this->train_params, (semantic_bki::ScanStep) scan_id);
         std::cout << "Inserted point cloud at " << scan_name << std::endl;
-        std::string file_name = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
-        pcl::io::savePCDFileASCII(file_name, *cloud);
-      //   if (query) {
-      //     for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id)
-      //     query_scan(input_data_dir, query_id);
-      //   }
+        //std::string file_name = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
+        //pcl::io::savePCDFileASCII(file_name, *cloud);
+        if (query) {
+          for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id)
+          query_scan(input_data_dir, query_id);
+        }
 
         if (visualize)
 	        publish_map();
+        
+        prev_origin = origin;
       }
       return 1;
     }
@@ -173,7 +186,7 @@ class SemanticKITTIData {
                        0.999977309828677, -0.001805528627661, -0.006496203536139, -0.333996806443304,
                        0                ,  0                ,  0                ,  1.000000000000000;
       
-      Eigen::Matrix4d new_transform = transform * calibration;
+      Eigen::Matrix4d new_transform = init_trans_to_ground_ * transform * calibration;
       pcl::transformPointCloud (*cloud, *cloud, new_transform);
 
       std::ofstream result_file;

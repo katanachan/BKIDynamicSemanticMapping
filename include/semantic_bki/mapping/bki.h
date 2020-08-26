@@ -98,8 +98,12 @@ namespace semantic_bki {
                 }
                 else{
                   _y_vec(i, 0) = 0;
-                  if (temporal)
-                    _v_vec(i, 0) = 0;
+                  if (temporal){
+                    if (k == 0 && dynamic[y_vec[i]])
+                      _v_vec(i, 0) = v(i, 0);
+                    else
+                      _v_vec(i, 0) = 0;
+                  }
                 }
               }
             
@@ -111,19 +115,21 @@ namespace semantic_bki {
                _vbar = (Kv * _v_vec);
               }
               else if (temporal && k == 0)
-                _vbar =  (Ki * v) ;
+                _vbar =  (Ki * _v_vec) ;
               
             
               for (int r = 0; r < _ybar.rows(); ++r){
                 ybars[r][k] = _ybar(r, 0);
                 if (temporal){
-                  if (dynamic[k])
+                  if (dynamic[k]){
                     vbars[r][k] = _vbar(r, 0) / _y_vec.size();
+                    // std::cout << k << std::endl;
+                  }
                    else
                      vbars[r][k] = 0;
                   // vbars[r][k] = _vbar(r, 0);// /_y_vec.size(); // compute the average velocity around that area
-                  // if (k == 0 && _vbar(r, 0) > 0.1)
-                  // std::cout << "Velocity is:" << vbars[r][k] << std::endl;
+                  //if (vbars[r][k] > 0.5 && k != 0)
+                  //std::cout << "Velocity is:" << vbars[r][k] << std::endl;
                 }
 
               }
@@ -222,6 +228,7 @@ namespace semantic_bki {
             dist(x, z, Kxz);
             Kxz = exp((1 / (sf2*sf2)) * -Kxz.array().pow(2)).matrix();
         }
+        
 
         /*
          * @brief Custom Sparse kernel.

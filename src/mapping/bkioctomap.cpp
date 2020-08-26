@@ -86,7 +86,7 @@ namespace semantic_bki {
         SemanticOcTreeNode::occupied_thresh = occupied_thresh;
 
         is_dynamic = std::vector<bool> (num_class, false);
-        is_dynamic[0] = true; // free space needs to be decayed as well
+        //is_dynamic[0] = true; // free space needs to be decayed as well
         for (auto const &dyn_idx: dynamic_in)
             is_dynamic[dyn_idx] = true;
 
@@ -333,7 +333,7 @@ namespace semantic_bki {
                 block_x.push_back(it->first.x());
                 block_x.push_back(it->first.y());
                 block_x.push_back(it->first.z());
-                train_flow = it->first.flow_norm();
+                train_flow = it->first.flow_norm() / robot_motion;
                 block_v.push_back(train_flow);
                 // if (train_flow > robot_motion)
                 //     block_v.push_back(train_flow);

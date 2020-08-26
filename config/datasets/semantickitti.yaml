@@ -2,10 +2,14 @@
 
 # Map information
 resolution: 0.3
-num_class: 2 #20 # Number of classes
+num_class: 20 #20 # Number of classes
+
+# #Kernel length scale
+ell: 0.6
+# sf2: 0.2
 
 # Sampling resolutions
-free_resolution: 100 # Free space sampling resolution
+free_resolution: 1 # Free space sampling resolution
 ds_resolution: 0.1 # Downsampling factor
 
 # Information about range-finder data
@@ -23,3 +27,7 @@ visualize: true
 
 #Dynamic class information
 moving_classes: [1, 2, 3, 4, 5, 6, 7, 8]
+
+#Flow kernel
+flow_ell: 0.6  #0.2
+flow_sf2: 50
