@@ -54,7 +54,7 @@ namespace semantic_bki {
         */
 
         void store_flow(const std::vector<T> &v){
-            this->v = Eigen::Map<const MatrixYType> (v.data(), v.size() , 1);
+            this->v = Eigen::Map<const MatrixXType> (v.data(), v.size() / dim, dim);
             //stored as Nx1 matrix
         }
        
@@ -71,7 +71,8 @@ namespace semantic_bki {
             // here and simply multiply the velocities
             // voxel centroids vs training points
             covMaterniso3(_xs, x, Kv);
-            covSparse(_xs, x, Ki, 0.1, 10000);
+	          if (dynamic[0])
+	            covSparse(_xs, x, Ki, 0.1, 10000);
             //covCountingSensorModel(_xs, x, Ki);
             //covGaussian(_xs, x, Kv);
           }
@@ -85,7 +86,7 @@ namespace semantic_bki {
           }
 
           MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
-          MatrixYType _v_vec = Eigen::Map<const MatrixYType>(v.data(), v.size(), 1);
+          MatrixXType _v_vec = Eigen::Map<const MatrixXType>(v.data(), v.size() / dim, dim);
 
           
           for (int k = 0; k < nc; ++k) {
@@ -99,22 +100,23 @@ namespace semantic_bki {
                 else{
                   _y_vec(i, 0) = 0;
                   if (temporal){
-                    if (k == 0 && dynamic[y_vec[i]])
+                    if (k == 0 && dynamic[0] && dynamic[y_vec[i]])
                       _v_vec(i, 0) = v(i, 0);
                     else
-                      _v_vec(i, 0) = 0;
+                      _v_vec.row(i).setZero();
                   }
                 }
               }
             
-              MatrixYType _ybar, _vbar;
+              MatrixYType _ybar;
+              MatrixXType _vbar;
               _ybar = (Ks * _y_vec);
               // if (temporal)
               //   _vbar = (Kv * _v_vec);
               if (temporal && k != 0){
                _vbar = (Kv * _v_vec);
               }
-              else if (temporal && k == 0)
+              else if (temporal && dynamic[k] &&  k == 0)
                 _vbar =  (Ki * _v_vec) ;
               
             
@@ -122,7 +124,7 @@ namespace semantic_bki {
                 ybars[r][k] = _ybar(r, 0);
                 if (temporal){
                   if (dynamic[k]){
-                    vbars[r][k] = _vbar(r, 0) / _y_vec.size();
+                    vbars[r][k] = _vbar.row(r).norm() / _y_vec.size();
                     // std::cout << k << std::endl;
                   }
                    else
@@ -292,7 +294,8 @@ namespace semantic_bki {
 
         MatrixXType x;   // temporary storage of training data
         MatrixYType y;   // temporary storage of training labels
-        MatrixYType v; // temporary storage for flow of training data
+        //MatrixYType v; // temporary storage for flow of training data
+        MatrixXType v;
         std::vector<T> y_vec;
         const std::vector<bool> dynamic; // a vector of the size nc that denotes whether a class is likely to be dynamic
 

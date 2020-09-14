@@ -105,11 +105,25 @@ namespace semantic_bki{
         inline Vector3 point() const{
             return Vector3(x(), y(), z());
         } 
+        
+        inline Vector3fWithFlow operator-(const Vector3 &other) const {
+            Vector3fWithFlow result(*this);
+            result(3) -= other(0);
+            result(4) -= other(1);
+            result(5) -= other(2);
+            return result;
+        }
+
 
         private:
             float data[3];
         
     };
 
+    inline std::ostream &operator<<(std::ostream &out, semantic_bki::Vector3fWithFlow const &v){
+        return out << '(' << v.x() << ' ' << v.y() << ' ' 
+                << v.z() << ' ' << v.vx() << ' ' << v.vy() << ' ' << v.vz() <<')';
+
+    }
     typedef Vector3fWithFlow flow3f;
 }

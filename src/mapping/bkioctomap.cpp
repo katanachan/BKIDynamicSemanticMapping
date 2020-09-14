@@ -116,160 +116,6 @@ namespace semantic_bki {
         Block::key_loc_map = init_key_loc_map(resolution, block_depth);
     }
 
-    void SemanticBKIOctoMap::insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, 
-                                                 const PCParams *train_params, const ScanStep create_id) {
-
-#ifdef DEBUG
-        Debug_Msg("Insert pointcloud: " << "cloud size: " << cloud.size() << " origin: " << origin);
-#endif
-
-        ////////// Preparation //////////////////////////
-        /////////////////////////////////////////////////
-        GPPointCloud xy;
-        get_training_data(cloud, origin, train_params, xy);
-#ifdef DEBUG
-        Debug_Msg("Training data size: " << xy.size());
-#endif
-        // If pointcloud after max_range filtering is empty
-        //  no need to do anything
-        if (xy.size() == 0) {
-            return;
-        }
-
-        point3f lim_min, lim_max;
-        bbox(xy, lim_min, lim_max); //6D point here
-
-        vector<BlockHashKey> blocks;
-        get_blocks_in_bbox(lim_min, lim_max, blocks); //gives keys to blocks
-
-        for (auto it = xy.cbegin(); it != xy.cend(); ++it) {
-            float p[] = {it->first.x(), it->first.y(), it->first.z()};
-            rtree.Insert(p, p, const_cast<GPPointType *>(&*it));
-        }
-        /////////////////////////////////////////////////
-
-        ////////// Training /////////////////////////////
-        /////////////////////////////////////////////////
-        vector<BlockHashKey> test_blocks;
-        std::unordered_map<BlockHashKey, SemanticBKI3f *> bgk_arr;
-#ifdef OPENMP
-#pragma omp parallel for schedule(dynamic)
-#endif
-        for (int i = 0; i < blocks.size(); ++i) {
-            BlockHashKey key = blocks[i];
-            ExtendedBlock eblock = get_extended_block(key);
-            if (has_gp_points_in_bbox(eblock))
-            //if there are points present in the extended block of this block:
-#ifdef OPENMP
-#pragma omp critical
-#endif
-            {
-                test_blocks.push_back(key);
-                //store this block for future inference
-            };
-
-            GPPointCloud block_xy; // a 6D point cloud with an attached label
-            get_gp_points_in_bbox(key, block_xy);
-            //get the point cloud that lies exclusively in this block
-            if (block_xy.size() < 1)
-                continue;
-
-            vector<float> block_x, block_v, block_y;
-            for (auto it = block_xy.cbegin(); it != block_xy.cend(); ++it) {
-                block_x.push_back(it->first.x());
-                block_x.push_back(it->first.y());
-                block_x.push_back(it->first.z());
-                block_v.push_back(it->first.flow_norm());
-                //block_v.push_back(it->first.vy());
-                //block_v.push_back(it->first.vz());
-                block_y.push_back(it->second);
-                //process the points contiguously to associate with a label
-            //Shwarya TODO: Store the velocities somehow in bgk_arr as well?
-            //Because these are the flows associated with those points anyway
-            
-            //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
-            }
-
-            SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal,
-                                                 SemanticOcTreeNode::kp, is_dynamic);
-            bgk->train(block_x, block_y);
-            //stores the training points into an Inference instance.
-            bgk->store_flow(block_v);
-#ifdef OPENMP
-#pragma omp critical
-#endif
-            {
-                bgk_arr.emplace(key, bgk);
-            };
-        }
-#ifdef DEBUG
-        Debug_Msg("Training done");
-        Debug_Msg("Prediction: block number: " << test_blocks.size());
-#endif
-        /////////////////////////////////////////////////
-
-        ////////// Prediction ///////////////////////////
-        /////////////////////////////////////////////////
-#ifdef OPENMP
-#pragma omp parallel for schedule(dynamic)
-#endif
-        for (int i = 0; i < test_blocks.size(); ++i) {
-            BlockHashKey key = test_blocks[i];
-#ifdef OPENMP
-#pragma omp critical
-#endif
-            {
-                if (block_arr.find(key) == block_arr.end())
-                    block_arr.emplace(key, new Block(hash_key_to_block(key), create_id));
-                    //couldn't find a block corresponding to the HashKey
-                    //initialize new Block
-                    //create_id can be useful in the future for time difference
-            };
-            Block *block = block_arr[key];
-            vector<float> xs;
-            //obtain all the octree points that exist within the block (unpruned)
-            for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it) {
-                point3f p = block->get_loc(leaf_it);
-                xs.push_back(p.x());
-                xs.push_back(p.y());
-                xs.push_back(p.z());
-            }
-            //std::cout << "xs size: "<<xs.size() << std::endl;
-
-	        // For counting sensor model
-            //get training points in the local block
-            auto bgk = bgk_arr.find(key);
-            if (bgk == bgk_arr.end())
-              continue;
-
-            vector<vector<float>> ybars, vbars;
-            bgk->second->predict_csm(xs, ybars, vbars);
-
-            int j = 0;
-            for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it, ++j) {
-                SemanticOcTreeNode &node = leaf_it.get_node();
-
-                // Only need to update if kernel density total kernel density est > 0
-                node.update(ybars[j], vbars[j], spatiotemporal);
-                //Note: Shwarya : only potential place to update velocities or 
-                // "store" any type of parameters.
-            }
-
-        }
-#ifdef DEBUG
-        Debug_Msg("Prediction done");
-#endif
-
-        ////////// Cleaning /////////////////////////////
-        /////////////////////////////////////////////////
-        for (auto it = bgk_arr.begin(); it != bgk_arr.end(); ++it)
-            delete it->second;
-
-        rtree.RemoveAll();
-    }
-
-
-
     void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
                                                 const PCParams *train_params, const ScanStep create_id) {
 
@@ -333,16 +179,19 @@ namespace semantic_bki {
                 block_x.push_back(it->first.x());
                 block_x.push_back(it->first.y());
                 block_x.push_back(it->first.z());
-                train_flow = it->first.flow_norm() / robot_motion;
-                block_v.push_back(train_flow);
-                // if (train_flow > robot_motion)
-                //     block_v.push_back(train_flow);
-                // else
-                //     block_v.push_back(0.0)
-                block_y.push_back(it->second); //label
+
+                // std::cout << " Before flow3f vec: " <<  it->first << std::endl;
+                // std::cout << "After flow vec: "  << it->first - displacement << std::endl;
+
+                train_flow = ((it->first).flow_norm()) / robot_motion;
+		//train_flow = it->first.flow_norm() / robot_motion;
+                //block_v.push_back(train_flow);
+                block_v.push_back(it->first.vx());// - displacement.x());
+                block_v.push_back(it->first.vy());// - displacement.y());
+                block_v.push_back(it->first.vz());// - displacement.z());
+
+                block_y.push_back(it->second); //label           
             
-            
-            //std::cout << search(it->first.x(), it->first.y(), it->first.z()) << std::endl;
             }
 
             SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, 

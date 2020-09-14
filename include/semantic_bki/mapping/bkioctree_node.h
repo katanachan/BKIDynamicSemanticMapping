@@ -79,6 +79,10 @@ namespace semantic_bki {
          */
         inline State get_state() const { return state; }
 
+        inline float get_flow(const int class_id) const{
+            return flow[class_id];
+        }
+
         inline int get_semantics() const { return semantics; }
 
         bool classified;

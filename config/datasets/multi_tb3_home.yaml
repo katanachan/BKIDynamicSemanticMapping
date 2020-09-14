@@ -5,11 +5,11 @@ resolution: 0.05
 num_class: 4
 
 #Kernel Information
-ell : 0.2
+ell : 0.15
 sf2 : 0.2 
 
 #Flow kernel
-flow_ell: 1  #0.2
+flow_ell: 0.2  #0.2
 flow_sf2: 10 # 2.5doesn't erase too much but stick to 3
 
 # Sampling resolutions

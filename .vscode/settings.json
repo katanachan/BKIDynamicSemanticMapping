@@ -85,6 +85,12 @@
         "string": "cpp",
         "vec4ub": "cpp",
         "mixinvector": "cpp",
-        "buffered_value": "cpp"
+        "buffered_value": "cpp",
+        "plane": "cpp",
+        "polytope": "cpp",
+        "block": "cpp",
+        "bufferobject": "cpp",
+        "texture": "cpp",
+        "fast_back_stack": "cpp"
     }
 }

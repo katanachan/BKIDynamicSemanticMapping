@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
     double ds_resolution = 0.1;
     int scan_num = 0;
     double max_range = -1;
+    int sequence_no = 4;
     semantic_bki::MapParams *mparams = new semantic_bki::MapParams{
                                     0.1, 4, 2, //resolution, block_depth, num_classes 
                                     
@@ -71,6 +72,7 @@ int main(int argc, char **argv) {
     nh.param<double>("max_range", train_params->max_range, train_params->max_range);
 
     nh.param<bool>("show_spatial", spatial, spatial);
+    nh.param<int>("sequence_no", sequence_no, sequence_no);
     nh.getParam("moving_classes", mparams->dynamic);
 
     // SemanticKITTI
@@ -111,7 +113,7 @@ int main(int argc, char **argv) {
 
     
     ///////// Build Map /////////////////////
-    SemanticKITTIData semantic_kitti_data(nh, mparams, train_params, map_topic);
+    SemanticKITTIData semantic_kitti_data(nh, mparams, train_params, map_topic, sequence_no);
     semantic_kitti_data.read_lidar_poses(dir + '/' + lidar_pose_file);
     semantic_kitti_data.set_up_evaluation(dir + '/' + gt_label_prefix, dir + '/' + evaluation_result_prefix);
     semantic_kitti_data.process_scans(dir + '/' + input_data_prefix, dir + '/' + input_label_prefix, scan_num, query, visualize);

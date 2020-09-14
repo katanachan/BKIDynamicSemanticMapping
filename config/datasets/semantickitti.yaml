@@ -5,15 +5,15 @@ resolution: 0.3
 num_class: 20 #20 # Number of classes
 
 # #Kernel length scale
-ell: 0.6
+ell: 0.5
 # sf2: 0.2
 
 # Sampling resolutions
-free_resolution: 1 # Free space sampling resolution
+free_resolution: 100 # Free space sampling resolution
 ds_resolution: 0.1 # Downsampling factor
 
 # Information about range-finder data
-scan_num: 271 # How many scans to use
+scan_num: 801 # How many scans to use
 max_range: -1 # Sensor max range (m)
 
 # Dataset information
@@ -29,5 +29,5 @@ visualize: true
 moving_classes: [1, 2, 3, 4, 5, 6, 7, 8]
 
 #Flow kernel
-flow_ell: 0.6  #0.2
-flow_sf2: 50
+flow_ell: 5  #0.2
+flow_sf2: 1
