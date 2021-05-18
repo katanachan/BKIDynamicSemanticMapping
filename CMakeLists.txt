@@ -4,6 +4,8 @@ project(semantic_bki)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -o3")
 
 find_package(OpenMP)
+find_package(PCL 1.2 REQUIRED)
+
 if (OPENMP_FOUND)
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -120,6 +122,8 @@ include_directories(
   include/semantic_bki/dataset_devkit
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+
 )
 
 ## Declare a cpp library
@@ -128,7 +132,9 @@ include_directories(
 # )
 
 # Common source files
-set(COMMON_SOURCE_FILES src/common/point3f)
+set(COMMON_SOURCE_FILES 
+    src/common/point3f
+    src/common/flow_point_types)
 
 # Files for SEMANTIC BGK source
 set(MAPPING_SOURCE_FILES
@@ -138,17 +144,24 @@ set(MAPPING_SOURCE_FILES
     src/mapping/bkioctree.cpp)
 
 
-add_executable(toy_example_node
+#add_executable(toy_example_node
+#  ${MAPPING_SOURCE_FILES}
+#  ${COMMON_SOURCE_FILES}
+#  src/toy_example_node.cpp
+# )
+
+add_executable(dynamic_node
   ${MAPPING_SOURCE_FILES}
   ${COMMON_SOURCE_FILES}
-  src/toy_example_node.cpp
+  src/dynamic_node.cpp
 )
 
-add_executable(kitti_node
-  ${MAPPING_SOURCE_FILES}
-  ${COMMON_SOURCE_FILES}
-  src/kitti_node.cpp
-)
+
+# add_executable(kitti_node
+#  ${MAPPING_SOURCE_FILES}
+#  ${COMMON_SOURCE_FILES}
+#  src/kitti_node.cpp
+#)
 
 add_executable(semantickitti_node
   ${MAPPING_SOURCE_FILES}
@@ -162,14 +175,21 @@ add_executable(semantickitti_node
 
 ## Specify libraries to link a library or executable target against
 
-target_link_libraries(toy_example_node
+#target_link_libraries(toy_example_node
+#  ${catkin_LIBRARIES}
+#  )
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+target_link_libraries(dynamic_node
   ${catkin_LIBRARIES}
-)
+  ${PCL_LIBRARIES}
+ )
 
-target_link_libraries(kitti_node
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
+#target_link_libraries(kitti_node
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
 
 target_link_libraries(semantickitti_node
   ${catkin_LIBRARIES}
@@ -216,10 +236,10 @@ target_link_libraries(semantickitti_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_BGKOctoMap.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
+catkin_add_gtest(${PROJECT_NAME}-test src/common/t_flow3f.cpp)
+#if(TARGET ${PROJECT_NAME}-test)
+#  target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
+#endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)

@@ -1,15 +1,19 @@
 # semantickitti_04 config
 
 # Map information
-resolution: 0.3
-num_class: 20 # Number of classes
+resolution: 0.2
+num_class: 26 # Number of classes
+
+# #Kernel length scale
+ell: 0.5
+# sf2: 0.2
 
 # Sampling resolutions
 free_resolution: 100 # Free space sampling resolution
 ds_resolution: 0.1 # Downsampling factor
 
 # Information about range-finder data
-scan_num: 100 # How many scans to use
+scan_num: 5000 # How many scans to use
 max_range: -1 # Sensor max range (m)
 
 # Dataset information
@@ -19,4 +23,14 @@ lidar_pose_file: poses.txt
 gt_label_prefix: labels/
 evaluation_result_prefix: evaluations/
 query: true
-visualize: true
+visualize: false
+
+#Dynamic class information
+#moving_classes: [1, 4, 5, 6, 7, 8, 20, 21, 22, 23, 24, 25]
+moving_classes: [20, 21, 22, 23, 24, 25]
+
+#Flow kernel
+flow_ell: 2.5  #0.2
+flow_sf2: 1
+
+sequence_no : 9

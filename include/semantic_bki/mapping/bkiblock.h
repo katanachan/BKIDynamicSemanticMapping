@@ -4,12 +4,13 @@
 #include <array>
 
 #include "point3f.h"
+#include "flow3f.h"
 #include "bkioctree_node.h"
 #include "bkioctree.h"
 
 namespace semantic_bki {
 
-    /// Hask key to index Block given block's center.
+    /// Hash key to index Block given block's center.
     typedef int64_t BlockHashKey;
 
     /// Initialize Look-Up Table
@@ -58,7 +59,7 @@ namespace semantic_bki {
     public:
         Block();
 
-        Block(point3f center);
+        Block(point3f center, ScanStep create_stamp);
 
         /// @return location of the OcTreeNode given OcTree's LeafIterator.
         inline point3f get_loc(const LeafIterator &it) const {
@@ -103,5 +104,6 @@ namespace semantic_bki {
         static unsigned short cell_num;
 
         point3f center;
+        ScanStep created_at;  //specify the scan step when block is created
     };
 }

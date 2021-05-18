@@ -153,7 +153,7 @@ namespace semantic_bki {
         inline LeafIterator end_leaf() const { return LeafIterator(nullptr); };
 
     private:
-        SemanticOcTreeNode **node_arr;
+        SemanticOcTreeNode **node_arr; //node_arr contains all the nodes
         static unsigned short max_depth;
     };
 }

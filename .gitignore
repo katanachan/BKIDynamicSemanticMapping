@@ -33,3 +33,7 @@ data/
 *.exe
 *.out
 *.app
+
+*.launch~
+*.h~
+*.cpp~

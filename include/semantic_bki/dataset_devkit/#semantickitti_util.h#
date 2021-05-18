@@ -1,4 +1,4 @@
-#pragma once
+pragma once
 
 #include <fstream>
 
@@ -94,7 +94,7 @@ class SemanticKITTIData {
         //pcl::io::savePCDFileASCII(file_name, *cloud);
         if (query) {
           //for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id){
-          query_scan(input_data_dir, scan_id - 1, false); //only querying present frame
+          query_scan(input_data_dir, scan_id - 1, true); //only querying present frame
           //note, you were working with prev_cloud, so queried scan should be for the previous cloud
         }
 

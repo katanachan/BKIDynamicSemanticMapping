@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bkioctomap.h"
-
+#define PI 3.1415926f
 namespace semantic_bki {
 
 	/*
@@ -19,7 +19,11 @@ namespace semantic_bki {
         using MatrixDKType = Eigen::Matrix<T, -1, 1>;
         using MatrixYType = Eigen::Matrix<T, -1, 1>;
 
-        SemanticBKInference(int nc, T sf2, T ell) : nc(nc), sf2(sf2), ell(ell), trained(false) { }
+        SemanticBKInference(int nc, bool temporal_in, KernelParams &params, std::vector<bool> dynamic_in) : 
+                            nc(nc), sf2(params.sf2), 
+                            ell(params.ell), flow_ell(params.flow_ell),
+                            flow_sf2(params.flow_sf2), temporal(temporal_in),
+                            dynamic(dynamic_in), trained(false) { }
 
         /*
          * @brief Fit BGK Model
@@ -44,63 +48,137 @@ namespace semantic_bki {
             this->y = MatrixYType(y);
             trained = true;
         }
+        /*
+        * \brief A function to store flow for each training point
+        *  @param v: flow matrix (1 * N)
+        */
 
+        void store_flow(const std::vector<T> &v){
+            this->v = Eigen::Map<const MatrixXType> (v.data(), v.size() / dim, dim);
+            //stored as Nx1 matrix
+        }
        
-      void predict(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars) {
+      void predict(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
+                    std::vector<std::vector<T>> &vbars) {
           assert(xs.size() % dim == 0);
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
           assert(trained == true);
-          MatrixKType Ks;
-
+          MatrixKType Ks, Kv, Ki;
           covSparse(_xs, x, Ks);
           
-          ybars.resize(_xs.rows());
-          for (int r = 0; r < _xs.rows(); ++r)
-            ybars[r].resize(nc);
+          if (temporal){
+           //Shwarya : TODO you can do the same and compute a velocity covariance
+            // here and simply multiply the velocities
+            // voxel centroids vs training points
+            covMaterniso3(_xs, x, Kv);
+	          if (dynamic[0])
+	            covSparse(_xs, x, Ki, 0.1, 10000);
+            //covCountingSensorModel(_xs, x, Ki);
+            //covGaussian(_xs, x, Kv);
+          }
+          vbars.resize(_xs.rows());
 
-            MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
-            for (int k = 0; k < nc; ++k) {
+          ybars.resize(_xs.rows());
+
+          for (int r = 0; r < _xs.rows(); ++r){
+            ybars[r].resize(nc);
+            vbars[r].resize(nc);
+          }
+
+          MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
+          MatrixXType _v_vec = Eigen::Map<const MatrixXType>(v.data(), v.size() / dim, dim);
+
+          
+          for (int k = 0; k < nc; ++k) {
               for (int i = 0; i < y_vec.size(); ++i) {
-                if (y_vec[i] == k)
+                if (y_vec[i] == k){
                   _y_vec(i, 0) = 1;
-                else
+
+                  if (temporal)
+                    _v_vec(i, 0) = v.row(i).norm();
+                }
+                else{
                   _y_vec(i, 0) = 0;
+                  if (temporal){
+                    if (k == 0 && dynamic[0] && dynamic[y_vec[i]])
+                      _v_vec(i, 0) = v.row(i).norm();
+                    else
+                      _v_vec.row(i).setZero();
+                  }
+                }
               }
             
-            MatrixYType _ybar;
-            _ybar = (Ks * _y_vec);
+              MatrixYType _ybar;
+              MatrixXType _vbar;
+              _ybar = (Ks * _y_vec);
+              // if (temporal)
+              //   _vbar = (Kv * _v_vec);
+              if (temporal && k != 0){
+               _vbar = (Kv * _v_vec);
+              }
+              else if (temporal && dynamic[k] &&  k == 0)
+                _vbar =  (Ki * _v_vec) ;
+              
             
-            for (int r = 0; r < _ybar.rows(); ++r)
-              ybars[r][k] = _ybar(r, 0);
+              for (int r = 0; r < _ybar.rows(); ++r){
+                ybars[r][k] = _ybar(r, 0);
+                if (temporal){
+                  if (dynamic[k]){
+                    vbars[r][k] = _vbar(r, 0) / _y_vec.size();
+                    // std::cout << k << std::endl;
+                  }
+                   else
+                     vbars[r][k] = 0;
+                  // vbars[r][k] = _vbar(r, 0);// /_y_vec.size(); // compute the average velocity around that area
+                  //if (vbars[r][k] > 0.5 && k != 0)
+                  //std::cout << "Velocity is:" << vbars[r][k] << std::endl;
+                }
+
+              }
+
+              
           }
       }
 
-      void predict_csm(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars) {
+      void predict_csm(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
+                        std::vector<std::vector<T>> &vbars) {
           assert(xs.size() % dim == 0);
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
           assert(trained == true);
           MatrixKType Ks;
 
-          covCountingSensorModel(_xs, x, Ks);
-          
+          covCountingSensorModel(_xs, x, Ks); // gives a (No. of Voxels x Training Points)
+          vbars.resize(_xs.rows());
           ybars.resize(_xs.rows());
-          for (int r = 0; r < _xs.rows(); ++r)
+
+          for (int r = 0; r < _xs.rows(); ++r){
             ybars[r].resize(nc);
+            vbars[r].resize(nc);
+          }
 
             MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
+            MatrixYType _v_vec = Eigen::Map<const MatrixYType>(v.data(), v.size(), 1);
+
             for (int k = 0; k < nc; ++k) {
               for (int i = 0; i < y_vec.size(); ++i) {
-                if (y_vec[i] == k)
+                if (y_vec[i] == k){
                   _y_vec(i, 0) = 1;
-                else
+                  _v_vec(i, 0) = v(i, 0); //what is this supposed to mean?!?!
+                }
+                else{
                   _y_vec(i, 0) = 0;
+                  _v_vec(i, 0) = 0;
+                }
               }
             
-            MatrixYType _ybar;
+            MatrixYType _ybar, _vbar;
             _ybar = (Ks * _y_vec);
+            _vbar = (Ks * _v_vec);
             
-            for (int r = 0; r < _ybar.rows(); ++r)
+            for (int r = 0; r < _ybar.rows(); ++r){
               ybars[r][k] = _ybar(r, 0);
+              vbars[r][k] = _vbar(r, 0);
+            }
           }
       }
 
@@ -126,8 +204,57 @@ namespace semantic_bki {
          * @return Kxz covariance matrix
          */
         void covMaterniso3(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz) const {
-            dist(1.73205 / ell * x, 1.73205 / ell * z, Kxz);
-            Kxz = ((1 + Kxz.array()) * exp(-Kxz.array())).matrix() * sf2;
+            dist(1.73205 / flow_ell * x, 1.73205 / flow_ell * z, Kxz);
+            Kxz = ((1 + Kxz.array()) * exp(-Kxz.array())).matrix() * flow_sf2;
+        }
+
+        /*
+         * @brief Custom Matern3 kernel.
+         * @param x input vector
+         * @param z input vector
+         * @return Kxz covariance matrix
+         */
+        void covMaterniso3(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz,
+                           const float ell_in, const float sf2_in) const {
+            dist(1.73205 / ell_in * x, 1.73205 / ell_in * z, Kxz);
+            Kxz = ((1 + Kxz.array()) * exp(-Kxz.array())).matrix() * sf2_in;
+        }
+
+        /*
+         * \brief Gaussian kernel.
+         * @param x input vector
+         * @param z input vector
+         * @return Kxz covariance matrix
+         */
+        void covGaussian(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz) const {
+            dist(x, z, Kxz);
+            Kxz = exp((1 / (sf2*sf2)) * -Kxz.array().pow(2)).matrix();
+        }
+        
+
+        /*
+         * @brief Custom Sparse kernel.
+         * @param x input vector
+         * @param z input vector
+         * @param ell_in kernel length_scale
+         * @param sf2_in kernel scale
+         * @return Kxz covariance matrix
+         * @ref A sparse covariance function for exact gaussian process inference in large datasets.
+         */
+        void covSparse(const MatrixXType &x, const MatrixXType &z, MatrixKType &Kxz,
+                       const float ell_in, const float sf2_in) const {
+            dist(x / ell_in, z / ell_in, Kxz);
+            Kxz = (((2.0f + (Kxz * 2.0f * 3.1415926f).array().cos()) * (1.0f - Kxz.array()) / 3.0f) +
+                  (Kxz * 2.0f * 3.1415926f).array().sin() / (2.0f * 3.1415926f)).matrix() * sf2_in;
+
+            // Clean up for values with distance outside length scale
+            // Possible because Kxz <= 0 when dist >= ell
+            for (int i = 0; i < Kxz.rows(); ++i)
+            {
+                for (int j = 0; j < Kxz.cols(); ++j)
+                    if (Kxz(i,j) < 0.0)
+                        Kxz(i,j) = 0.0f;
+            }
         }
 
         /*
@@ -156,13 +283,21 @@ namespace semantic_bki {
           Kxz = MatrixKType::Ones(x.rows(), z.rows());
         }
 
+        T flow_sf2;
+        T flow_ell;
+        bool temporal;
+
+
         T sf2;    // signal variance
         T ell;    // length-scale
         int nc;   // number of classes
 
         MatrixXType x;   // temporary storage of training data
         MatrixYType y;   // temporary storage of training labels
+        //MatrixYType v; // temporary storage for flow of training data
+        MatrixXType v;
         std::vector<T> y_vec;
+        const std::vector<bool> dynamic; // a vector of the size nc that denotes whether a class is likely to be dynamic
 
         bool trained;    // true if bgkinference stored training data
     };

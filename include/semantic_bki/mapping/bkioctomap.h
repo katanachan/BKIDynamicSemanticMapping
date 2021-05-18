@@ -2,17 +2,52 @@
 
 #include <unordered_map>
 #include <vector>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
+
+
 #include "rtree.h"
 #include "bkiblock.h"
 #include "bkioctree_node.h"
+#include "flow_point_types.h"
 
 namespace semantic_bki {
 
-    /// PCL PointCloud types as input
-    typedef pcl::PointXYZL PCLPointType;
-    typedef pcl::PointCloud<PCLPointType> PCLPointCloud;
+    //PointCloud training helper struct
+    struct PCTrainingParameters{
+        //point3f origin;
+        double ds_resolution;
+        double free_resolution;
+        double max_range;
+        //ScanStep scan_number;
+        //default constructor - does nothing
+        PCTrainingParameters() {}
+        //custom constructor to load data in
+        PCTrainingParameters(float ds_resolution_in, float free_resolution_in,
+                float max_range_in) : ds_resolution(ds_resolution_in), 
+                free_resolution(free_resolution_in), max_range(max_range_in) {}
+    };
+    typedef PCTrainingParameters PCParams;
+
+    //Map parameter helper struct
+    struct MapParams{
+        double resolution;
+        int block_depth;
+        int num_classes;
+
+        double sf2;
+        double ell;
+        float prior;
+
+        float flow_sf2;
+        float flow_ell;
+
+        float var_thresh;
+        double free_thresh;
+        double occupied_thresh;
+
+        bool spatiotemporal;
+        std::vector<int> dynamic;
+    };
+
 
     /*
      * @brief BGKOctoMap
@@ -22,13 +57,19 @@ namespace semantic_bki {
      * depth are rooted. Occupancy values in one Block is predicted by 
      * its ExtendedBlock via Bayesian generalized kernel inference.
      */
+
+
     class SemanticBKIOctoMap {
     public:
         /// Types used internally
         typedef std::vector<point3f> PointCloud;
-        typedef std::pair<point3f, float> GPPointType;
+        typedef std::pair<flow3f, float> GPPointType;
+
         typedef std::vector<GPPointType> GPPointCloud;
-        typedef RTree<GPPointType *, float, 3, float> MyRTree;
+        typedef RTree<GPPointType *, float, 3, float> MyRTree; 
+        //format is <data type, elem. type, dim. no., type for computation>
+        //keep number of dimensions as 3
+
 
     public:
         SemanticBKIOctoMap();
@@ -46,15 +87,21 @@ namespace semantic_bki {
          * @param free_thresh free threshold for Occupancy probability (default 0.3)
          * @param occupied_thresh occupied threshold for Occupancy probability (default 0.7)
          */
-        SemanticBKIOctoMap(float resolution,
-                unsigned short block_depth,
-                int num_class,
-                float sf2,
-                float ell,
-                float prior,
-                float var_thresh,
-                float free_thresh,
-                float occupied_thresh);
+        SemanticBKIOctoMap(const float resolution,
+                const unsigned short block_depth,
+                const int num_class,
+                const float sf2,
+                const float ell,
+                const float prior,
+                const float flow_sf2,
+                const float flow_ell,
+                const float var_thresh,
+                const float free_thresh,
+                const float occupied_thresh,
+                const bool spatiotemporal,
+                const std::vector<int> &dynamic);
+        
+        SemanticBKIOctoMap(const MapParams *params);
 
         ~SemanticBKIOctoMap();
 
@@ -74,23 +121,25 @@ namespace semantic_bki {
          * @brief Insert PCL PointCloud into BGKOctoMaps.
          * @param cloud one scan in PCLPointCloud format
          * @param origin sensor origin in the scan
-         * @param ds_resolution downsampling resolution for PCL VoxelGrid filtering (-1 if no downsampling)
-         * @param free_res resolution for sampling free training points along sensor beams (default 2.0)
-         * @param max_range maximum range for beams to be considered as valid measurements (-1 if no limitation)
+         * @param PCParams train_params will contain:
+         *  ds_resolution downsampling resolution for PCL VoxelGrid filtering (-1 if no downsampling)
+         *  free_res resolution for sampling free training points along sensor beams (default 2.0 (Shwarya: check this))
+         *   maximum range for beams to be considered as valid measurements (-1 if no limitation)
          */
-        void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                               float free_res = 2.0f,
-                               float max_range = -1);
+        void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, 
+                               const PCParams *train_params, const ScanStep create_id = 0);
 
 
-        void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                               float free_res = 2.0f,
-                               float max_range = -1);
+        void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
+                                const PCParams *train_params, const ScanStep create_id = 0);
 
         //void insert_training_data(const GPPointCloud &cloud);
 
         /// Get bounding box of the map.
         void get_bbox(point3f &lim_min, point3f &lim_max) const;
+
+        // Update SemanticOctree within node with number of scans that have passed
+        void sync_block(const ScanStep scans_done);
 
         class RayCaster {
         public:
@@ -255,6 +304,9 @@ namespace semantic_bki {
             }
 
             LeafIterator &operator++() {
+                /***
+                 * Goes through every octree node in the block
+                 ***/
                 ++leaf_it;
                 if (leaf_it == end_leaf) {
                     ++block_it;
@@ -323,6 +375,7 @@ namespace semantic_bki {
 
         inline float get_block_size() const { return block_size; }
 
+
     private:
         /// @return true if point is inside a bounding box given min and max limits.
         inline bool gp_point_in_bbox(const GPPointType &p, const point3f &lim_min, const point3f &lim_max) const {
@@ -364,21 +417,24 @@ namespace semantic_bki {
         static bool search_callback(GPPointType *p, void *arg);
 
         /// Downsample PCLPointCloud using PCL VoxelGrid Filtering.
-        void downsample(const PCLPointCloud &in, PCLPointCloud &out, float ds_resolution) const;
+        void downsample(const PCLPointCloud &in, PCLPointCloud &out, const float ds_resolution) const;
 
         /// Sample free training points along sensor beams.
-        void beam_sample(const point3f &hits, const point3f &origin, PointCloud &frees,
-                         float free_resolution) const;
+        void beam_sample(const flow3f &hits, const point3f &origin, PointCloud &frees,
+                         const float free_resolution) const;
 
         /// Get training data from one sensor scan.
-        void get_training_data(const PCLPointCloud &cloud, const point3f &origin, float ds_resolution,
-                               float free_resolution, float max_range, GPPointCloud &xy) const;
+        void get_training_data(const PCLPointCloud &cloud, const point3f &origin,
+                                const PCParams *train_params, GPPointCloud &xy) const;
 
         float resolution;
         float block_size;
         unsigned short block_depth;
         std::unordered_map<BlockHashKey, Block *> block_arr;
         MyRTree rtree;
+        //Added by Shwarya
+        bool spatiotemporal; //spatial mapping if false, spatiotemporal if true
+        std::vector<bool> is_dynamic;
     };
 
 }
