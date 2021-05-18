@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 
                                     1.0f, 0.3, 0.7, //var_thresh, free_thresh, occupied_thresh
 
-                                    true, //spatiotemporal,
+                                    false, //spatiotemporal,
 
                                     {1, 2, 3, 4, 5, 6, 7, 8} // dynamic classes
                                     };

@@ -183,12 +183,10 @@ namespace semantic_bki {
                 // std::cout << " Before flow3f vec: " <<  it->first << std::endl;
                 // std::cout << "After flow vec: "  << it->first - displacement << std::endl;
 
-                train_flow = ((it->first).flow_norm()) / robot_motion;
-		//train_flow = it->first.flow_norm() / robot_motion;
-                //block_v.push_back(train_flow);
+                train_flow = (it->first).flow_norm();
                 block_v.push_back(it->first.vx());// - displacement.x());
                 block_v.push_back(it->first.vy());// - displacement.y());
-                block_v.push_back(it->first.vz());// - displacement.z());
+                block_v.push_back(it->first.vz());// - displacement.z());    
 
                 block_y.push_back(it->second); //label           
             

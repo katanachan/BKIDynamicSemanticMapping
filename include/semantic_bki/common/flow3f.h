@@ -114,6 +114,15 @@ namespace semantic_bki{
             return result;
         }
 
+        inline Vector3fWithFlow operator+(const Vector3 &other) const {
+            Vector3fWithFlow result(*this);
+            result(3) += other(0);
+            result(4) += other(1);
+            result(5) += other(2);
+            return result;
+        }
+
+
 
         private:
             float data[3];

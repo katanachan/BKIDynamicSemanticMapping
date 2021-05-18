@@ -95,13 +95,13 @@ namespace semantic_bki {
                   _y_vec(i, 0) = 1;
 
                   if (temporal)
-                    _v_vec(i, 0) = v(i, 0);
+                    _v_vec(i, 0) = v.row(i).norm();
                 }
                 else{
                   _y_vec(i, 0) = 0;
                   if (temporal){
                     if (k == 0 && dynamic[0] && dynamic[y_vec[i]])
-                      _v_vec(i, 0) = v(i, 0);
+                      _v_vec(i, 0) = v.row(i).norm();
                     else
                       _v_vec.row(i).setZero();
                   }
@@ -124,7 +124,7 @@ namespace semantic_bki {
                 ybars[r][k] = _ybar(r, 0);
                 if (temporal){
                   if (dynamic[k]){
-                    vbars[r][k] = _vbar.row(r).norm() / _y_vec.size();
+                    vbars[r][k] = _vbar(r, 0) / _y_vec.size();
                     // std::cout << k << std::endl;
                   }
                    else
