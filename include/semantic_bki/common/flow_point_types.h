@@ -20,7 +20,7 @@ namespace semantic_bki{
         float vx;
         float vy;
         float vz;
-        int label;
+        unsigned int label;
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     } EIGEN_ALIGN16;
 
@@ -36,8 +36,8 @@ namespace semantic_bki{
         float vx;
         float vy;
         float vz;
-        int label;
-        int gt;
+        unsigned int label;
+        unsigned int gt;
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     } EIGEN_ALIGN16;
 
@@ -50,7 +50,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZFlowL,           // here we 
                                 (float, vx, vx)
 				                (float, vy, vy)
 				                (float, vz, vz)
-				                (int, label, label)
+				                (unsigned int, label, label)
 				                ) 
     //declared inside namespace, defined outside namespace.
 POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZFlowLGT,     
@@ -60,16 +60,16 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZFlowLGT,
                                 (float, vx, vx)
 				                (float, vy, vy)
 				                (float, vz, vz)
-				                (int, label, label)
-                                (int, gt, gt)
+				                (unsigned int, label, label)
+                                (unsigned int, gt, gt)
 				                ) 
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (semantic_bki::XYZLGT,     
                                 (float, x, x)
                                 (float, y, y)
                                 (float, z, z)
-				                (int, label, label)
-                                (int, gt, gt)
+				                (unsigned int, label, label)
+                                (unsigned int, gt, gt)
 				                ) 
 
 namespace semantic_bki{
