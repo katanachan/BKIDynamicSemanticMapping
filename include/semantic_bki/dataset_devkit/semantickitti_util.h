@@ -226,7 +226,7 @@ class SemanticKITTIData {
       FILE* fp_label = std::fopen(fn_label.c_str(), "r");
       //label file
       if (!fp_label)
-        std::perror("File opening failed");
+        std::perror("File opening failed: label");
       
       std::fseek(fp_label, 0L, SEEK_END);
       std::rewind(fp_label);
@@ -234,7 +234,7 @@ class SemanticKITTIData {
       //flow file
       FILE* fp_flow = std::fopen(fn_flow.c_str(), "r");
       if (!fp_flow)
-        std::perror("File opening failed");
+        std::perror("File opening failed: flow");
       
       std::fseek(fp_flow, 0L, SEEK_END);
       std::rewind(fp_flow);
@@ -242,7 +242,7 @@ class SemanticKITTIData {
       //xyz file
       FILE* fp = std::fopen(fn.c_str(), "r");
       if (!fp)
-        std::perror("File opening failed");
+        std::perror("File opening failed: velodyne");
       
       std::fseek(fp, 0L, SEEK_END);
       size_t sz = std::ftell(fp);
