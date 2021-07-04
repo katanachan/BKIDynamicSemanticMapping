@@ -72,7 +72,7 @@ namespace semantic_bki {
             // voxel centroids vs training points
             covMaterniso3(_xs, x, Kv);
 	          if (dynamic[0])
-	            covSparse(_xs, x, Ki, 0.1, 10000);
+	            covSparse(_xs, x, Ki, 0.1, 10000); // for free space
             //covCountingSensorModel(_xs, x, Ki);
             //covGaussian(_xs, x, Kv);
           }
@@ -87,26 +87,37 @@ namespace semantic_bki {
 
           MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
           MatrixXType _v_vec = Eigen::Map<const MatrixXType>(v.data(), v.size() / dim, dim);
+          /***
+           * This block of code essentially copies over the velocities of each training point
+           * to _v_vec
+           * ***/
 
           
-          for (int k = 0; k < nc; ++k) {
-              for (int i = 0; i < y_vec.size(); ++i) {
-                if (y_vec[i] == k){
-                  _y_vec(i, 0) = 1;
+          for (int k = 0; k < nc; ++k) { //iterate through all classes
+              for (int i = 0; i < y_vec.size(); ++i) { //iterate through all the labels 
+                if (y_vec[i] == k){ //if the label class matches a valid class
+                  _y_vec(i, 0) = 1; 
 
                   if (temporal)
-                    _v_vec(i, 0) = v.row(i).norm();
+                    _v_vec(i, 0) = v.row(i).norm(); //store the norm of velocity for that label
                 }
                 else{
-                  _y_vec(i, 0) = 0;
+                  _y_vec(i, 0) = 0; 
                   if (temporal){
-                    if (k == 0 && dynamic[0] && dynamic[y_vec[i]])
-                      _v_vec(i, 0) = v.row(i).norm();
+                    if (k == 0 && dynamic[0] && dynamic[y_vec[i]]) //if free space is treated as moving
+                      _v_vec(i, 0) = v.row(i).norm(); //save the norm of velocity for whichever label here
+                      //a training point can only have one label
                     else
                       _v_vec.row(i).setZero();
                   }
                 }
               }
+              /***
+               * This block of code will take the velocities saved from the training points
+               * and use a Kernel to calculate the velocities for the test points
+               * For non-free space semantic classes, we're using Kv
+               * For free-space, we're using a sparse kernel 
+               ***/
             
               MatrixYType _ybar;
               MatrixXType _vbar;
@@ -119,6 +130,13 @@ namespace semantic_bki {
               else if (temporal && dynamic[k] &&  k == 0)
                 _vbar =  (Ki * _v_vec) ;
               
+              /***
+               * In this block of code, the velocities for query points have already been
+               * computed, but we want to store it in a 2D matrix that has a component 
+               * for each class as well.
+               * The line vbars[r][k] is going to take the computed velocity for one query point
+               * and add it on to the kth class for that query point.
+               ***/ 
             
               for (int r = 0; r < _ybar.rows(); ++r){
                 ybars[r][k] = _ybar(r, 0);
@@ -128,8 +146,7 @@ namespace semantic_bki {
                     // std::cout << k << std::endl;
                   }
                    else
-                     vbars[r][k] = 0;
-                  // vbars[r][k] = _vbar(r, 0);// /_y_vec.size(); // compute the average velocity around that area
+                     vbars[r][k] = vbars[r][0];
                   //if (vbars[r][k] > 0.5 && k != 0)
                   //std::cout << "Velocity is:" << vbars[r][k] << std::endl;
                 }

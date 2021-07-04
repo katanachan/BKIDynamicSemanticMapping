@@ -46,20 +46,20 @@ namespace semantic_bki {
       color.a = 1.0;
 
       switch (c) {
-        case 1:
+        case 2:
           color.r = 1;
           color.g = 0;
           color.b = 0;
           break;
-        case 2:
-          color.r = 70.0/255;
-          color.g = 130.0/255;
-          color.b = 180.0/255;
+        case 1:
+          color.r = 198.0 / 255;//70.0/255;
+          color.g = 198.0 / 255;//130.0/255;
+          color.b = 198.0 / 255;//180.0/255;
           break;
         case 3:
-          color.r = 218.0/255;
-          color.g = 112.0/255;
-          color.b = 214.0/255;
+          color.r = 255.0 / 255;//218.0/255;
+          color.g = 171.0 / 255;//112.0/255;
+          color.b = 25.0 / 255;//214.0/255;
           break;
         default:
           color.r = 1;

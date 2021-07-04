@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-
 namespace semantic_bki {
 
 
@@ -109,6 +108,7 @@ namespace semantic_bki {
         static float var_thresh;
         static float free_thresh;     // FREE occupancy threshold
         static float occupied_thresh; // OCCUPIED occupancy threshold
+
     };
 
     typedef Semantics SemanticOcTreeNode;

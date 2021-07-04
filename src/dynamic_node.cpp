@@ -53,7 +53,7 @@ static void load_pcd(std::string filename, semantic_bki::point3f &origin, Eigen:
     static bool is_data_valid(const semantic_bki::point3f &origin_prev, 
                     const semantic_bki::point3f &origin_now){
             //std::cout << "Displacement between scans" << origin_now - origin_prev << std::endl;
-            if ((origin_prev - origin_now).norm() > 0.5)
+            if ((origin_prev - origin_now).norm() > 0.5) 
                 return false;
             else
                 return true;
@@ -94,7 +94,7 @@ static void publish_map(semantic_bki::MarkerArrayPub &m_pub, semantic_bki::Marke
 		          min_var = vars[semantics];
         }
     }
-    m_pub.insert_point3d_semantics(origin.x(), origin.y(), origin.z(), 0.2 , 4, 0);
+    //m_pub.insert_point3d_semantics(origin.x(), origin.y(), origin.z(), 0.2 , 4, 0);
     m_pub.publish();
     v_pub.publish();
     std::cout << "max_var: " << max_var << std::endl;
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 
                                     false, //spatiotemporal
 
-                                    {2} // only dynamic class the robot
+                                    {0, 2} // only dynamic class the robot
                                     };
 
 
@@ -195,6 +195,7 @@ int main(int argc, char **argv) {
     nh.param<double>("max_range", train_params->max_range, train_params->max_range);
 
     nh.param<bool>("show_spatial", spatial, spatial);
+    nh.getParam("moving_classes", mparams->dynamic);
    
     ROS_INFO_STREAM("Parameters:" << std::endl <<
             "dir: " << dir << std::endl <<

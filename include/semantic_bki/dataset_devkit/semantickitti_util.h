@@ -73,7 +73,10 @@ class SemanticKITTIData {
          return false;
       }
     }
-    
+    ~SemanticKITTIData(){
+      delete map_;
+      delete m_pub_;
+    }
 
     bool process_scans(const std::string &input_data_dir, const std::string &input_label_dir, 
                         const int scan_num, const bool query, const bool visualize) {
