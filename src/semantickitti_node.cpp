@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 
                                     1.0f, 0.3, 0.7, //var_thresh, free_thresh, occupied_thresh
 
-                                    false, //spatiotemporal,
+                                    true, //spatiotemporal,
 
                                     {1, 2, 3, 4, 5, 6, 7, 8} // dynamic classes
                                     };
@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
     nh.param<float>("var_thresh", mparams->var_thresh, mparams->var_thresh);
     nh.param<double>("free_thresh", mparams->free_thresh, mparams->free_thresh);
     nh.param<double>("occupied_thresh", mparams->occupied_thresh, mparams->occupied_thresh);
+    nh.param<bool>("spatiotemporal", mparams->spatiotemporal, mparams->spatiotemporal);
     
     nh.param<double>("resolution", mparams->resolution, mparams->resolution);
     nh.param<int>("num_class", mparams->num_classes, mparams->num_classes);
