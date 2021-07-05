@@ -13,7 +13,7 @@ namespace semantic_bki {
     float Semantics::var_thresh = 1000.0f;
     float Semantics::free_thresh = 0.3f;
     float Semantics::occupied_thresh = 0.7f;
-    KernelParams Semantics::kp = {1.0, 1.0, 0.2, 0.2} ;
+    KernelParams Semantics::kp = {1.0, 1.0, 0.2, 0.2, 0.05} ;
 
 
     void Semantics::get_probs(std::vector<float>& probs) const {
@@ -44,8 +44,6 @@ namespace semantic_bki {
           //    ms[i] = exp( -vbars[i] * vbars[i])
           //            * ms[i] + ybars[i];
           // else{ //can't use new flows
-              if (i == 2)
-                flow[i] = 0;
               ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
                     * ms[i] +  ybars[i];
               flow[i] = 0.75 * vbars[i] + 0.25 * flow[i];

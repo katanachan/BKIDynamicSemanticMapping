@@ -81,6 +81,7 @@ namespace semantic_bki {
         SemanticOcTreeNode::prior = prior;
         SemanticOcTreeNode::kp.flow_sf2 = flow_sf2;
         SemanticOcTreeNode::kp.flow_ell = flow_ell;
+        SemanticOcTreeNode::kp.m_resol = resolution;
         SemanticOcTreeNode::var_thresh = var_thresh;
         SemanticOcTreeNode::free_thresh = free_thresh;
         SemanticOcTreeNode::occupied_thresh = occupied_thresh;

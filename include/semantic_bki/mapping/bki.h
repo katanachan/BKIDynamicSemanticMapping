@@ -22,7 +22,7 @@ namespace semantic_bki {
         SemanticBKInference(int nc, bool temporal_in, KernelParams &params, std::vector<bool> dynamic_in) : 
                             nc(nc), sf2(params.sf2), 
                             ell(params.ell), flow_ell(params.flow_ell),
-                            flow_sf2(params.flow_sf2), temporal(temporal_in),
+                            flow_sf2(params.flow_sf2), m_resol(params.m_resol), temporal(temporal_in),
                             dynamic(dynamic_in), trained(false) { }
 
         /*
@@ -72,7 +72,7 @@ namespace semantic_bki {
             // voxel centroids vs training points
             covMaterniso3(_xs, x, Kv);
 	          if (dynamic[0])
-	            covSparse(_xs, x, Ki, 0.1, 10000); // for free space
+	            covSparse(_xs, x, Ki, 2*m_resol, 10000); // for free space
             //covCountingSensorModel(_xs, x, Ki);
             //covGaussian(_xs, x, Kv);
           }
@@ -300,8 +300,9 @@ namespace semantic_bki {
           Kxz = MatrixKType::Ones(x.rows(), z.rows());
         }
 
-        T flow_sf2;
-        T flow_ell;
+        T flow_sf2; //vel kernel signal variance
+        T flow_ell; //vel kernel length-scale
+        T m_resol; //map resolution
         bool temporal;
 
 

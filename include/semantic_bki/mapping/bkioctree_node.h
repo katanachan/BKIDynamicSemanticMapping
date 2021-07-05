@@ -13,6 +13,8 @@ namespace semantic_bki {
         float flow_sf2;
         float flow_ell;
 
+        float m_resol; 
+
     };
 
     /// Occupancy state: before pruning: FREE, OCCUPIED, UNKNOWN; after pruning: PRUNED
