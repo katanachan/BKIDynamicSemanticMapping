@@ -7,11 +7,11 @@ Dynamic Semantic Mapping using Closed Form Bayesian Inference & Scene Flow
 
 ### Data
 
-Gazebo Simulator: I store the data collected from a Gazebo simulation environment in the form of a custom point cloud structure with 7 fields: X, Y, Z, VX, VY, VZ & L, where the first three are positional information with respect to the robot frame, the next three fields are the egomotion-compensated scene flow fand the last field is the semantic label. Data is collected with a block laser scanner and filtered with passthrough filters to remove NaNs. Please download data from this link(TODO) to get pointclouds in **".pcd"** format.
+**Gazebo Simulator**: I store the data collected from a Gazebo simulation environment in the form of a custom point cloud structure with 7 fields: X, Y, Z, VX, VY, VZ & L, where the first three are positional information with respect to the robot frame, the next three fields are the egomotion-compensated scene flow fand the last field is the semantic label. Data is collected with a block laser scanner and filtered with passthrough filters to remove NaNs. Please download data from this link(TODO) to get pointclouds in **".pcd"** format.
 
-SemanticKITTI dataset: The SemanticKITTI dataset can be downloaded from https://semantickitti.org. The data is provided in the correct format and can be downloaded from this link(TODO). Additionally, in the **predictions** folder, you can also find the corresponding scene flow information for each scan in **".bin"** format.
+**SemanticKITTI dataset**: The SemanticKITTI dataset can be downloaded from https://semantickitti.org. The data is provided in the correct format and can be downloaded from this link(TODO). Additionally, in the **predictions** folder, you can also find the corresponding scene flow information for each scan in **".bin"** format.
 
-You can drop all this data into the **data** folder.
+You can drop all this data into the **data/** folder.
 
 ### Compiling the package
 
@@ -49,21 +49,23 @@ $ roslaunch semantic_bki semantickitti_node.launch
 You will see semantic map in RViz. It also queries each ground truth point for evaluation, stored at data/semantickitti_01/evaluations.
 
 ### Using Custom Sequences
-If you are experimenting with other sequences in SemanticKITTI, make sure to open https://github.com/katanachan/BKIDynamicSemanticMapping/blob/master/launch/semantickitti_node.launch and modify the following: <img src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/launchfile.jpg" width=320> and the config file as described in the next section.
+If you are experimenting with other sequences in SemanticKITTI, make sure to open the [launch file](https://github.com/katanachan/BKIDynamicSemanticMapping/blob/master/launch/semantickitti_node.launch) and modify the following: <img src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/launchfile.jpg" width=320> 
+
+and then, the config file as described in the next section.
 
 ### Tuning Parameters
-All parameters can be tuned from the **.config** file
+All parameters can be tuned from the **.config** file located in **config/**.
 <ol>
-<li>sequnece_no: Enter an integer here specifying sequence number if you're modifying the SemanticKITTI configuration file</li>
-<li>resolution: the resolution of the map that is built</li>
-<li>spatiotemporal: set to true if you have scene flow data, else false (for static mapping)</li>
-<li>query: set to false if you don't want to do a quantitative evaluation every scan</li>
-<li>visualize: set to true if you want to visualize the map in RViz</li>
-<li>moving_classes: a list of the class IDs that are considered "dynamic." If you wish, you can set movable static objects to dynamic. Note: if your free space sampling resolution is high (eg. 1-10), put 0 in the list of dynamic classes.</li>
-<li>free_resolution: set free space sampling resolution (if you set to a high value like 100, there will be no free space sampling resolution)</li>
-<li>ds_resolution: downsampling resolution for any incoming point cloud. Up to you.</li>
-<li>ell & flow_ell: ell is for the original map. Keep it about 2.5x the map resolution and flow_ell around the same.
-<li>flow_sf2: increase this if traces aren't disappearing.
+  <li><strong>sequence_no</strong>: Enter an integer here specifying sequence number if you're modifying the SemanticKITTI configuration file</li>
+  <li><strong>resolution</strong>: the resolution of the map that is built</li>
+<li><strong>spatiotemporal</strong>: set to true if you have scene flow data, else false (for static mapping)</li>
+<li><strong>query</strong>: set to false if you don't want to do a quantitative evaluation every scan</li>
+<li><strong>visualize</strong>: set to true if you want to visualize the map in RViz</li>
+<li><strong>moving_classes</strong>: a list of the class IDs that are considered "dynamic." If you wish, you can set movable static objects to dynamic. Note: if your free space sampling resolution is high (eg. 1-10), put 0 in the list of dynamic classes.</li>
+<li><strong>free_resolution</strong>: set free space sampling resolution (if you set to a high value like 100, there will be no free space sampling resolution)</li>
+<li><strong>ds_resolution</strong>: downsampling resolution for any incoming point cloud. Up to you.</li>
+<li><strong>ell & flow_ell</strong>: ell is for the original map. Keep it about 2.5x the map resolution and flow_ell around the same.
+<li><strong>flow_sf2</strong>: increase this if traces aren't disappearing.
 </ol>
 
 ### Evaluation
