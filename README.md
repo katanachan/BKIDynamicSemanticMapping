@@ -5,7 +5,7 @@ Dynamic Semantic Mapping using Closed Form Bayesian Inference & Scene Flow
 <img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_csm_variance.png" width="300"><img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_bki_variance.png" width="300"> -->
 
 
-## Data
+### Data
 
 Gazebo Simulator: I store the data collected from a Gazebo simulation environment in the form of a custom point cloud structure with 7 fields: X, Y, Z, VX, VY, VZ & L, where the first three are positional information with respect to the robot frame, the next three fields are the egomotion-compensated scene flow fand the last field is the semantic label. Data is collected with a block laser scanner and filtered with passthrough filters to remove NaNs. Please download data from this link(TODO) to get pointclouds in **".pcd"** format.
 
@@ -49,7 +49,7 @@ $ roslaunch semantic_bki semantickitti_node.launch
 You will see semantic map in RViz. It also queries each ground truth point for evaluation, stored at data/semantickitti_01/evaluations.
 
 ### Using Custom Sequences
-If you are experimenting with other sequences in SemanticKITTI, make sure to open https://github.com/katanachan/BKIDynamicSemanticMapping/blob/master/launch/semantickitti_node.launch and modify the following: <img src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/launchfile.png" width=320> and the config file as described in the next section.
+If you are experimenting with other sequences in SemanticKITTI, make sure to open https://github.com/katanachan/BKIDynamicSemanticMapping/blob/master/launch/semantickitti_node.launch and modify the following: <img src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/launchfile.jpg" width=320> and the config file as described in the next section.
 
 ### Tuning Parameters
 All parameters can be tuned from the **.config** file
