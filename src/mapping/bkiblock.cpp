@@ -108,10 +108,9 @@ namespace semantic_bki {
     std::unordered_map<OcTreeHashKey, point3f> Block::key_loc_map;
     std::unordered_map<unsigned short, OcTreeHashKey> Block::index_map;
 
-    Block::Block() : SemanticOcTree(), center(0.0f, 0.0f, 0.0f), created_at(0) { }
+    Block::Block() : SemanticOcTree(), center(0.0f, 0.0f, 0.0f){ }
 
-    Block::Block(point3f center_in, ScanStep create_stamp_in) : SemanticOcTree(), center(center_in)
-                    , created_at(create_stamp_in) { }
+    Block::Block(point3f center_in) : SemanticOcTree(), center(center_in){ }
 
     ExtendedBlock Block::get_extended_block() const {
         ExtendedBlock blocks;

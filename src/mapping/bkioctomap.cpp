@@ -29,7 +29,8 @@ namespace semantic_bki {
                                         0.3f, // free_thresh
                                         0.7f, // occupied_thresh
                                         false, //spatial
-                                        std::vector<int> () // empty vector
+                                        std::vector<int> (), // empty vector,
+                                        true // free-space observations
                                     ) { }
     SemanticBKIOctoMap::SemanticBKIOctoMap(const MapParams *params) : SemanticBKIOctoMap(params->resolution, // resolution
                                         params->block_depth,
@@ -43,7 +44,8 @@ namespace semantic_bki {
                                         params->free_thresh,
                                         params->occupied_thresh, // occupied_thresh
                                         params->spatiotemporal, // are we trying to do spatial or spatiotemporal?
-                                        params->dynamic
+                                        params->dynamic,
+                                        params->free_sample //do we have free space observations?
                                     ) { }
 
     SemanticBKIOctoMap::SemanticBKIOctoMap(const float resolution,
@@ -58,10 +60,12 @@ namespace semantic_bki {
                         const float free_thresh,
                         const float occupied_thresh,
                         const bool spatiotemporal_in,
-                        const std::vector<int> &dynamic_in)
+                        const std::vector<int> &dynamic_in,
+                        const bool free_sample_in)
             : resolution(resolution), block_depth(block_depth),
               block_size((float) pow(2, block_depth - 1) * resolution),
-              spatiotemporal(spatiotemporal_in) {
+              spatiotemporal(spatiotemporal_in),
+              free_sample(free_sample_in) {
         Block::resolution = resolution;
         Block::size = this->block_size;
         Block::key_loc_map = init_key_loc_map(resolution, block_depth);
@@ -118,7 +122,7 @@ namespace semantic_bki {
     }
 
     void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
-                                                const PCParams *train_params, const ScanStep create_id) {
+                                                const PCParams *train_params) {
 
 #ifdef DEBUG
         Debug_Msg("Insert pointcloud: " << "cloud size: " << cloud.size() << " origin: " << origin);
@@ -222,7 +226,7 @@ namespace semantic_bki {
 #endif
             {
                 if (block_arr.find(key) == block_arr.end())
-                    block_arr.emplace(key, new Block(hash_key_to_block(key), create_id));
+                    block_arr.emplace(key, new Block(hash_key_to_block(key)));
             };
             Block *block = block_arr[key];
             vector<float> xs;
@@ -248,7 +252,7 @@ namespace semantic_bki {
                     SemanticOcTreeNode &node = leaf_it.get_node();
                     // Only need to update if kernel density total kernel density est > 0
                     //if (kbar[j] > 0.0)
-                    node.update(ybars[j], vbars[j], spatiotemporal);
+                    node.update(ybars[j], vbars[j], spatiotemporal, free_sample);
                     // node.update(ybars[j], vbars[j], create_id - block->created_at);
                     // block->created_at = create_id;
                 }
@@ -291,6 +295,7 @@ namespace semantic_bki {
         frees.height = 1;
         frees.width = 0;
         xy.clear();
+        float custom_res = 0.0f;
         for (auto it = sampled_hits.begin(); it != sampled_hits.end(); ++it) {
             flow3f p(it->x, it->y, it->z, it->vx, it->vy, it->vz);
             if (train_params->max_range > 0) {
@@ -301,8 +306,11 @@ namespace semantic_bki {
             
             xy.emplace_back(p, it->label); //don't recommend modifying
             //xy because it is fed into the RTree for spatial partitioning
-
-            //frees need not have a velocity associated with them
+                //frees need not have a velocity associated with them
+            // if (it->label >= 20)
+            //     custom_res = 0.3;
+            // else
+            //     custom_res = train_params->free_resolution;
 
             PointCloud frees_n;
             beam_sample(p, origin, frees_n, train_params->free_resolution);
@@ -492,15 +500,5 @@ namespace semantic_bki {
         return search(point3f(x, y, z));
     }
 
-    void SemanticBKIOctoMap::sync_block(ScanStep scans_done){
-        for (auto it = block_arr.begin(); it != block_arr.end(); ++it) {
-            Block *curr_block = it->second;
-            for (auto leaf_it = curr_block->begin_leaf(); leaf_it != curr_block->end_leaf(); ++leaf_it) {
-                SemanticOcTreeNode &node = leaf_it.get_node();
-                //update the OctreeNode with posterior predictive distribution
-                node.pred_post_update(scans_done - curr_block->created_at);
-            }
-        }
-    }
 
 }

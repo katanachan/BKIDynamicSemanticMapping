@@ -50,12 +50,12 @@ namespace semantic_bki {
         }
         /*
         * \brief A function to store flow for each training point
-        *  @param v: flow matrix (1 * N)
+        *  @param v: flow matrix N x 3)
         */
 
         void store_flow(const std::vector<T> &v){
             this->v = Eigen::Map<const MatrixXType> (v.data(), v.size() / dim, dim);
-            //stored as Nx1 matrix
+            //stored as Nx3 matrix
         }
        
       void predict(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
@@ -72,7 +72,7 @@ namespace semantic_bki {
             // voxel centroids vs training points
             covMaterniso3(_xs, x, Kv);
 	          if (dynamic[0])
-	            covSparse(_xs, x, Ki, 2*m_resol, 10000); // for free space
+	            covSparse(_xs, x, Ki, 2*m_resol, 1000); // Apply sparse kernel to free space
             //covCountingSensorModel(_xs, x, Ki);
             //covGaussian(_xs, x, Kv);
           }
@@ -95,6 +95,7 @@ namespace semantic_bki {
           
           for (int k = 0; k < nc; ++k) { //iterate through all classes
               for (int i = 0; i < y_vec.size(); ++i) { //iterate through all the labels 
+              //std::cout << v.row(i).norm() << '\n';
                 if (y_vec[i] == k){ //if the label class matches a valid class
                   _y_vec(i, 0) = 1; 
 
@@ -116,16 +117,18 @@ namespace semantic_bki {
                * This block of code will take the velocities saved from the training points
                * and use a Kernel to calculate the velocities for the test points
                * For non-free space semantic classes, we're using Kv
-               * For free-space, we're using a sparse kernel 
+               * For free-space, we're using a sparse kernel Ki
                ***/
             
               MatrixYType _ybar;
               MatrixXType _vbar;
+
               _ybar = (Ks * _y_vec);
               // if (temporal)
               //   _vbar = (Kv * _v_vec);
               if (temporal && k != 0){
                _vbar = (Kv * _v_vec);
+
               }
               else if (temporal && dynamic[k] &&  k == 0)
                 _vbar =  (Ki * _v_vec) ;
@@ -146,9 +149,11 @@ namespace semantic_bki {
                     // std::cout << k << std::endl;
                   }
                    else
-                     vbars[r][k] = vbars[r][0];
-                  //if (vbars[r][k] > 0.5 && k != 0)
-                  //std::cout << "Velocity is:" << vbars[r][k] << std::endl;
+                     vbars[r][k] = vbars[r][0]; //Store the dynamic velocity observed to deplete static and free classes
+                // if (k==2)
+                //   std::cout << vbars[r][k] << '\n';
+                  // if (vbars[r][k] > 0.5 && k != 0)
+                  // std::cout << "Velocity is:" << vbars[r][k] << std::endl;
                 }
 
               }

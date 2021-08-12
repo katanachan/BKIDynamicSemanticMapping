@@ -41,7 +41,9 @@ namespace semantic_bki {
          * @brief Constructors and destructor.
          */
         Semantics() : ms(std::vector<float>(num_class, prior)), state(State::UNKNOWN),
-                        flow(std::vector<float>(num_class, 0.0f)) { classified = false; }
+                        flow(std::vector<float>(num_class, 0.0f)) { classified = false; 
+                                                                    ms[0] = 0.1; //set free space prior to 0.1
+                                                                    }
 
         Semantics(const Semantics &other) : ms(other.ms), state(other.state), 
                             semantics(other.semantics), flow(other.flow) { }
@@ -59,10 +61,15 @@ namespace semantic_bki {
         /*
          * @brief Exact updates for nonparametric Bayesian kernel inference
          * @param ybar kernel density estimate of positive class (occupied)
-         * @param kbar kernel density of negative class (unoccupied)
+         * @param vbar kernel density estimate of per-class velocity
+         * @param spatiotemporal bool about whether we are doing static (false) 
+         *          or dynamic (true) mapping
+         * @param free_sample bool to indicate whether the point cloud includes
+         *          free space samples or does not.
          */
         void update(const std::vector<float>& ybars,
-              const std::vector<float>& vbars, bool spatiotemporal);
+              const std::vector<float>& vbars, bool spatiotemporal,
+              bool free_sample);
 
         void update(const std::vector<float>& ybars,
                   const std::vector<float> &vbars,
@@ -106,10 +113,11 @@ namespace semantic_bki {
 
         static KernelParams kp; //kernel params - sf2, ell, flow_sf2, flow_ell
 
-
         static float var_thresh;
         static float free_thresh;     // FREE occupancy threshold
         static float occupied_thresh; // OCCUPIED occupancy threshold
+
+        static float gamma; //parameter for how flow is smoothed with M.A.
 
     };
 

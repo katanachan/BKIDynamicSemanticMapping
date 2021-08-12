@@ -59,7 +59,7 @@ namespace semantic_bki {
     public:
         Block();
 
-        Block(point3f center, ScanStep create_stamp);
+        Block(point3f center);
 
         /// @return location of the OcTreeNode given OcTree's LeafIterator.
         inline point3f get_loc(const LeafIterator &it) const {
@@ -104,6 +104,5 @@ namespace semantic_bki {
         static unsigned short cell_num;
 
         point3f center;
-        ScanStep created_at;  //specify the scan step when block is created
     };
 }

@@ -125,7 +125,7 @@ static void run_map_experiment(semantic_bki::SemanticBKIOctoMap &map, ros::NodeH
         //if (is_data_valid(origin, prev_origin)){
         //if (true){
             map.insert_pointcloud(prev_cloud, prev_origin, (origin - prev_origin), 
-                                train_params, (semantic_bki::ScanStep) scan_id);
+                                train_params);
             ROS_INFO_STREAM("Scan " << scan_id - 1 << " done");
             publish_map(m_pub, v_pub, map, prev_origin, mparams->num_classes); // we only need to 
             //publish if the map is updated
@@ -167,7 +167,9 @@ int main(int argc, char **argv) {
 
                                     false, //spatiotemporal
 
-                                    {0, 2} // only dynamic class the robot
+                                    {0, 2}, // only dynamic class the robot
+
+                                    true //we usually sample free space for the gazebo simulation
                                     };
 
 

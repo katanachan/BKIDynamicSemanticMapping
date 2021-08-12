@@ -13,6 +13,7 @@ namespace semantic_bki {
     float Semantics::var_thresh = 1000.0f;
     float Semantics::free_thresh = 0.3f;
     float Semantics::occupied_thresh = 0.7f;
+    float Semantics::gamma = 0.75;
     KernelParams Semantics::kp = {1.0, 1.0, 0.2, 0.2, 0.05} ;
 
 
@@ -35,25 +36,22 @@ namespace semantic_bki {
     }
 
     void Semantics::update(const std::vector<float>& ybars,
-                  const std::vector<float> &vbars, bool spatiotemporal) {
+                  const std::vector<float> &vbars, bool spatiotemporal, 
+                  bool free_sample) {
       assert(ybars.size() == num_class && vbars.size() == num_class);
       classified = true;
+      float removed_alpha = 0;
+      if (!free_sample)
+        flow[0] = 0;
+
       for (int i = 0; i < num_class; ++i){
         if (spatiotemporal){
-          // if (i == 0)
-          //    ms[i] = exp( -vbars[i] * vbars[i])
-          //            * ms[i] + ybars[i];
-          // else{ //can't use new flows
-              ms[i] =  exp( -flow[i] * flow[i] ) // / (1 - probs[i]))
-                    * ms[i] +  ybars[i];
-              flow[i] = 0.75 * vbars[i] + 0.25 * flow[i];
-              //flow[i] = vbars[i];
-          //}
-              //flow[i] = 0.75 * vbars[i] + 0.25 * flow[i]; 
+            removed_alpha = exp(-flow[i] * flow[i]) * ms[i]; //decay prior (prediction step)
+            ms[i] = removed_alpha + ybars[i]; //add new observations (update step)
+            flow[i] = gamma * vbars[i] + (1 - gamma) * flow[i]; //update flow for the next time step
         }
         else
-          ms[i] += ybars[i];
-        //std::cout << exp( -flow[i] * flow[i]) << std::endl;
+          ms[i] += ybars[i]; // static mapping: so just add new observations
       }
 
       std::vector<float> probs(num_class);

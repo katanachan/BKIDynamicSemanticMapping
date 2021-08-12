@@ -46,6 +46,7 @@ namespace semantic_bki {
 
         bool spatiotemporal;
         std::vector<int> dynamic;
+        bool free_sample;
     };
 
 
@@ -99,7 +100,8 @@ namespace semantic_bki {
                 const float free_thresh,
                 const float occupied_thresh,
                 const bool spatiotemporal,
-                const std::vector<int> &dynamic);
+                const std::vector<int> &dynamic,
+                const bool free_sample);
         
         SemanticBKIOctoMap(const MapParams *params);
 
@@ -127,11 +129,11 @@ namespace semantic_bki {
          *   maximum range for beams to be considered as valid measurements (-1 if no limitation)
          */
         void insert_pointcloud_csm(const PCLPointCloud &cloud, const point3f &origin, 
-                               const PCParams *train_params, const ScanStep create_id = 0);
+                               const PCParams *train_params);
 
 
         void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
-                                const PCParams *train_params, const ScanStep create_id = 0);
+                                const PCParams *train_params);
 
         //void insert_training_data(const GPPointCloud &cloud);
 
@@ -435,6 +437,7 @@ namespace semantic_bki {
         //Added by Shwarya
         bool spatiotemporal; //spatial mapping if false, spatiotemporal if true
         std::vector<bool> is_dynamic;
+        bool free_sample; //indicate if there are free space samples in the data with true 
     };
 
 }

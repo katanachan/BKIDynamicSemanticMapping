@@ -35,7 +35,9 @@ int main(int argc, char **argv) {
 
                                     true, //spatiotemporal,
 
-                                    {1, 2, 3, 4, 5, 6, 7, 8} // dynamic classes
+                                    {1, 2, 3, 4, 5, 6, 7, 8}, // dynamic classes
+
+                                    true //usually assumes that we have sampled free space
                                     };
     semantic_bki::PCParams *train_params = new semantic_bki::PCParams{0.1, 0.5, -1};
     //ds_resolution, free_resolution, max_range
@@ -64,6 +66,8 @@ int main(int argc, char **argv) {
     nh.param<double>("free_thresh", mparams->free_thresh, mparams->free_thresh);
     nh.param<double>("occupied_thresh", mparams->occupied_thresh, mparams->occupied_thresh);
     nh.param<bool>("spatiotemporal", mparams->spatiotemporal, mparams->spatiotemporal);
+    nh.param<bool>("free_sample", mparams->free_sample, mparams->free_sample);
+
     
     nh.param<double>("resolution", mparams->resolution, mparams->resolution);
     nh.param<int>("num_class", mparams->num_classes, mparams->num_classes);
@@ -86,29 +90,33 @@ int main(int argc, char **argv) {
     nh.param<bool>("query", query, query);
     nh.param<bool>("visualize", visualize, visualize);
 
-    ROS_INFO_STREAM("Parameters:" << std::endl <<
-      "block_depth: " << block_depth << std::endl <<
-      "sf2: " << mparams->sf2 << std::endl <<
-      "ell: " << mparams->ell << std::endl <<
-      "prior: " << mparams->prior << std::endl <<
-      "var_thresh: " << mparams->var_thresh << std::endl <<
-      "free_thresh: " << mparams->free_thresh << std::endl <<
-      "occupied_thresh: " << mparams->occupied_thresh << std::endl <<
-      "resolution: " << mparams->resolution << std::endl <<
-      "num_class: " << mparams->num_classes << std::endl <<
-      "free_resolution: " << train_params->free_resolution << std::endl <<
-      "ds_resolution: " << train_params->ds_resolution << std::endl <<
-      "scan_sum: " << scan_num << std::endl <<
-      "max_range: " << train_params->max_range << std::endl << 
+    ROS_INFO_STREAM("Parameters:" << '\n' <<
+      "block_depth: " << block_depth << '\n' <<
+      "sf2: " << mparams->sf2 << '\n' <<
+      "ell: " << mparams->ell << '\n' <<
+      "flow_sf2: " << mparams->flow_sf2 << '\n' <<
+      "flow_ell: " << mparams->flow_ell << '\n' <<
+      "prior: " << mparams->prior << '\n' <<
+      "var_thresh: " << mparams->var_thresh << '\n' <<
+      "free_thresh: " << mparams->free_thresh << '\n' <<
+      "occupied_thresh: " << mparams->occupied_thresh << '\n' <<
+      "resolution: " << mparams->resolution << '\n' <<
+      "num_class: " << mparams->num_classes << '\n' <<
+      "free_resolution: " << train_params->free_resolution << '\n' <<
+      "ds_resolution: " << train_params->ds_resolution << '\n' <<
+      "scan_sum: " << scan_num << '\n' <<
+      "max_range: " << train_params->max_range << '\n' << 
+      "spatiotemporal: " << mparams->spatiotemporal << '\n' << 
+      "free_sample: " << mparams->free_sample << '\n' << 
 
-      "SemanticKITTI:" << std::endl <<
-      "dir: " << dir << std::endl <<
-      "input_data_prefix: " << input_data_prefix << std::endl <<
-      "input_label_prefix: " << input_label_prefix << std::endl <<
-      "lidar_pose_file: " << lidar_pose_file << std::endl <<
-      "gt_label_prefix: " << gt_label_prefix << std::endl <<
-      "evaluation_result_prefix: " << evaluation_result_prefix << std::endl <<
-      "query: " << query << std::endl <<
+      "SemanticKITTI:" << '\n' <<
+      "dir: " << dir << '\n' <<
+      "input_data_prefix: " << input_data_prefix << '\n' <<
+      "input_label_prefix: " << input_label_prefix << '\n' <<
+      "lidar_pose_file: " << lidar_pose_file << '\n' <<
+      "gt_label_prefix: " << gt_label_prefix << '\n' <<
+      "evaluation_result_prefix: " << evaluation_result_prefix << '\n' <<
+      "query: " << query << '\n' <<
       "visualize:" << visualize
       );
 
