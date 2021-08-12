@@ -7,7 +7,7 @@ Dynamic Semantic Mapping using Closed Form Bayesian Inference & Scene Flow
 
 ### Data
 
-**Gazebo Simulator**: I store the data collected from a Gazebo simulation environment in the form of a custom point cloud structure with 7 fields: X, Y, Z, VX, VY, VZ & L, where the first three are positional information with respect to the robot frame, the next three fields are the egomotion-compensated scene flow fand the last field is the semantic label. Data is collected with a block laser scanner and filtered with passthrough filters to remove NaNs. Please download data from this link(TODO) to get pointclouds in **".pcd"** format.
+**Gazebo Simulator**: I store the data collected from a Gazebo simulation environment in the form of a custom point cloud structure with 7 fields: X, Y, Z, VX, VY, VZ & L, where the first three are positional information with respect to the robot frame, the next three fields are the egomotion-compensated scene flow fand the last field is the semantic label. Data is collected with a block laser scanner and filtered with passthrough filters to remove NaNs. Please download data from this [link](https://drive.google.com/file/d/1jg9-P6cRnjl-O4QB0-2QpK5G8e0gZpLW/view?usp=sharing) to get pointclouds in **".pcd"** format.
 
 **SemanticKITTI dataset**: The SemanticKITTI dataset can be downloaded from https://semantickitti.org. The data is provided in the correct format and can be downloaded from this link(TODO). Additionally, in the **predictions** folder, you can also find the corresponding scene flow information for each scan in **".bin"** format.
 
@@ -56,16 +56,19 @@ and then, the config file as described in the next section.
 ### Tuning Parameters
 All parameters can be tuned from the **.config** file located in **config/**.
 <ol>
-  <li><strong>sequence_no</strong>: Enter an integer here specifying sequence number if you're modifying the SemanticKITTI configuration file</li>
-  <li><strong>resolution</strong>: the resolution of the map that is built</li>
-<li><strong>spatiotemporal</strong>: set to true if you have scene flow data, else false (for static mapping)</li>
-<li><strong>query</strong>: set to false if you don't want to do a quantitative evaluation every scan</li>
-<li><strong>visualize</strong>: set to true if you want to visualize the map in RViz</li>
-<li><strong>moving_classes</strong>: a list of the class IDs that are considered "dynamic." If you wish, you can set movable static objects to dynamic. Note: if your free space sampling resolution is high (eg. 1-10), put 0 in the list of dynamic classes.</li>
-<li><strong>free_resolution</strong>: set free space sampling resolution (if you set to a high value like 100, there will be no free space sampling resolution)</li>
-<li><strong>ds_resolution</strong>: downsampling resolution for any incoming point cloud. Up to you.</li>
+  <li><strong>sequence_no</strong>: Enter an integer here specifying sequence number if you're modifying the SemanticKITTI configuration file.</li>
+  <li><strong>resolution</strong>: Enter the resolution of the map that you are building</li>
+<li><strong>spatiotemporal</strong>: Set to true if you have scene flow data, else false (for static mapping)</li>
+<li><strong>query</strong>: Set to false if you don't want to do a quantitative evaluation every scan</li>
+<li><strong>visualize</strong>: Set to true if you want to visualize the map in RViz</li>
+<li><strong>moving_classes</strong>: Provide a list of the class IDs that are considered "dynamic." If you wish, you can set movable static objects to dynamic. 
+Put 0 in the list of dynamic classes if you have at least one dynamic class.</li>
+<li><strong>free_resolution</strong>: Set free space sampling resolution (if you set to a high value like 100, there will be no free space sampling resolution)</li>
+<li><strong>ds_resolution</strong>: Set downsampling resolution for any incoming point cloud. Up to you.</li>
+<li><strong>free_sample</strong>: This parameter is introduced because we need to handle datasets differently when you sample for free space. Let's say you don't sample for free space due to the sheer size of the point set (e.g. SemanticKITTI)! In this case, there are no observations belonging to the class "free." Set ,<strong>free_sample</strong> to false in this case. Now, for the Gazebo simulation, the point set is smaller, so we can sample along the ray and add free observations. In this case, we set this parameter to true. 
 <li><strong>ell & flow_ell</strong>: ell is for the original map. Keep it about 2.5x the map resolution and flow_ell around the same.
-<li><strong>flow_sf2</strong>: increase this if traces aren't disappearing.
+<li><strong>flow_sf2</strong>: Increase this if traces aren't disappearing. Decrease if the dynamic object is not being represented.
+
 </ol>
 
 ### Evaluation
