@@ -1,8 +1,43 @@
 # D-BKI
 Dynamic Semantic Mapping using Closed Form Bayesian Inference & Scene Flow
 
-<!-- <img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_csm.png" width="300"><img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_bki.png" width="300">
-<img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_csm_variance.png" width="300"><img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_bki_variance.png" width="300"> -->
+### Introduction
+With this code, you can create dynamic semantic occupancy maps with point cloud data acquired from any sensor. We demonstrate our method on the SemanticKITTI dataset and data collected from a Gazebo simulation environment. 
+
+#### SemanticKITTI dataset
+
+The _Sample Scene Image_ cell displays the car that has to be represented in the map in real-time, while the _Static versus Dynamic Mapping_ cell displays a comparison between static semantic mapping and dynamic semantic mapping. 
+
+<table>
+  <tr>
+    <th> Sample Scene Image </th>
+    <th> Static Versus Dynamic Mapping </th>
+  </tr>
+  <tr>
+    <td> 
+      <p align="center" style="padding: 10px">
+        <img alt="simg1" src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/skitti_01_intro.jpg" width="400">
+      </p>
+    </td>
+    <td>
+      <p align="center" style="padding: 10px">
+         <img alt="demo1" src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/skitti_01_gif.gif" width="515">
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td> 
+      <p align="center" style="padding: 10px">
+        <img alt="simg4" src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/skitti_04_intro.jpg" width="400">
+      </p>
+    </td>
+    <td>
+      <p align="center" style="padding: 10px">
+         <img alt="demo4" src="https://raw.githubusercontent.com/katanachan/BKIDynamicSemanticMapping/master/github/skitti_04_gif.gif" width="515">
+      </p>
+    </td>
+  </tr>
+</table>
 
 ### Data
 
