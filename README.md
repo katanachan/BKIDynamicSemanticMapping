@@ -4,7 +4,6 @@ Dynamic Semantic Mapping using Closed Form Bayesian Inference & Scene Flow
 <!-- <img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_csm.png" width="300"><img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_bki.png" width="300">
 <img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_csm_variance.png" width="300"><img src="https://raw.githubusercontent.com/ganlumomo/BKISemanticMapping/master/github/toy_example_semantic_bki_variance.png" width="300"> -->
 
-
 ### Data
 
 **Gazebo Simulator**: I store the data collected from a Gazebo simulation environment in the form of a custom point cloud structure with 7 fields: X, Y, Z, VX, VY, VZ & L, where the first three are positional information with respect to the robot frame, the next three fields are the egomotion-compensated scene flow fand the last field is the semantic label. Data is collected with a block laser scanner and filtered with passthrough filters to remove NaNs. Please download data from this [link](https://drive.google.com/file/d/1jg9-P6cRnjl-O4QB0-2QpK5G8e0gZpLW/view?usp=sharing) to get pointclouds in **".pcd"** format.
@@ -77,8 +76,17 @@ Evaluation code is provided in TODO. You may modify the directory names to run i
 ## Relevant Publications
 
 If you found this code useful, please cite the following:
-
-TODO
+Dynamic Semantic Occupancy Mapping using 3D Scene Flow and Closed-Form Bayesian Inference ([PDF](https://arxiv.org/abs/2108.03180))
+```
+@misc{unnikrishnan2021dynamic,
+      title={Dynamic Semantic Occupancy Mapping using 3D Scene Flow and Closed-Form Bayesian Inference}, 
+      author={Aishwarya Unnikrishnan and Joseph Wilson and Lu Gan and Andrew Capodieci and Paramsothy Jayakumar and Kira Barton and Maani Ghaffari},
+      year={2021},
+      eprint={2108.03180},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO}
+}
+```
 
 Bayesian Spatial Kernel Smoothing for Scalable Dense Semantic Mapping ([PDF](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8954837))
 ```

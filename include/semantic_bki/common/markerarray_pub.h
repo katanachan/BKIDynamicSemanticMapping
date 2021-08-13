@@ -76,101 +76,137 @@ namespace semantic_bki {
       color.a = 1.0;
 
       switch (c) {
-        case 1:  // car
+        case 1:  // car (orange-ish)
           color.r = 245.0 / 255;
           color.g = 150.0 / 255;
           color.b = 100.0 / 255;
           break;
-        case 2:  // bicycle
+        case 2:  // bicycle (mauve?)
           color.r = 245.0 / 255;
           color.g = 230.0 / 255;
           color.b = 100.0 / 255;
           break;
-        case 3:  // motorcycle
+        case 3:  // motorcycle (dark-brown-ish)
           color.r = 150.0 / 255;
           color.g = 60.0 / 255;
           color.b = 30.0 / 255;
           break;
-        case 4:  // truck
+        case 4:  // truck (dark pink/red-ish)
           color.r = 180.0 / 255;
           color.g = 30.0 / 255;
           color.b = 80.0 / 255;
           break;
-        case 5:  // other-vehicle
+        case 5:  // other-vehicle (orange-red-ish)
           color.r = 255.0 / 255;
           color.g = 80.0 / 255;
           color.b = 100.0 / 255;
           break;
-        case 6:  // person
+        case 6:  // person (bright-darkblue)
           color.r = 30.0 / 255;
           color.g = 30.0 / 255;
           color.b = 1;
           break;
-        case 7:  // bicyclist
+        case 7:  // bicyclist (purple-pink)
           color.r = 200.0 / 255;
           color.g = 40.0 / 255;
           color.b = 1;
           break;
-        case 8:  // motorcyclist
+        case 8:  // motorcyclist (violet)
           color.r = 90.0 / 255;
           color.g = 30.0 / 255;
           color.b = 150.0 / 255;
           break;
-        case 9:  // road
+        case 9:  // road (pink)
           color.r = 1;
           color.g = 0;
           color.b = 1;
           break;
-        case 10: // parking
+        case 10: // parking (light pink)
           color.r = 1;
           color.g = 150.0 / 255;
           color.b = 1;
           break;
-        case 11: // sidewalk
+        case 11: // sidewalk (plum)
           color.r = 75.0 / 255;
           color.g = 0;
           color.b = 75.0 / 255;
           break;
-        case 12: // other-ground
+        case 12: // other-ground (purple)
           color.r = 75.0 / 255;
           color.g = 0;
           color.b = 175.0 / 255;
           break;
-        case 13: // building
+        case 13: // building (light blue)
           color.r = 0;
           color.g = 200.0 / 255;
           color.b = 1;
           break;
-        case 14: // fence
+        case 14: // fence (sea blue?)
           color.r = 50.0 / 255;
           color.g = 120.0 / 255;
           color.b = 1;
           break;
-        case 15: // vegetation
+        case 15: // vegetation (bright green)
           color.r = 0;
           color.g = 175.0 / 255;
           color.b = 0;
           break;
-        case 16: // trunk
+        case 16: // trunk (v. dark blue)
           color.r = 0;
           color.g = 60.0 / 255;
           color.b = 135.0 / 255;
           break;
-        case 17: // terrain
+        case 17: // terrain (light green)
           color.r = 80.0 / 255;
           color.g = 240.0 / 255;
           color.b = 150.0 / 255;
           break;
-        case 18: // pole
+        case 18: // pole (light blue)
           color.r = 150.0 / 255;
           color.g = 240.0 / 255;
           color.b = 1;
           break;
-        case 19: // traffic-sign
+        case 19: // traffic-sign (blue-est blue)
           color.r = 0;
           color.g = 0;
           color.b = 1;
           break;
+        case 20: //moving-car (yellow)
+          color.r = 1.;
+          color.g = 1.;
+          color.b = 0.;
+          break;
+        
+        case 21: //moving-bicyclist (yellow-green)
+          color.r = 153. / 255;
+          color.g = 153./ 255;
+          color.b = 0.;
+          break;
+
+        case 22: //moving-person (aquamarine blue?)
+          color.r = 51.0 /255;
+          color.g = 1;
+          color.b = 1;
+          break;
+        
+        case 23: //moving-motorcyclist (teal)
+          color.r = 0.;
+          color.g = 204. / 255;
+          color.b = 204. / 255;
+          break;
+
+        case 24: //moving-other vehicle (lime green)
+          color.r = 204. / 255;
+          color.g = 1.;
+          color.b = 153. / 255;
+          break;
+        
+        case 25: //moving truck (black)
+          color.r = 0.;
+          color.g = 0.;
+          color.b = 0.;
+          break;
+
         default:
           color.r = 1;
           color.g = 1;

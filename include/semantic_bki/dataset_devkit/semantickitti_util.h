@@ -90,14 +90,14 @@ class SemanticKITTIData {
 	      semantic_bki::PCLPointCloud::Ptr cloud = 
                 get_one_scan(input_data_dir, input_label_dir, scan_id, origin);
 	      map_->insert_pointcloud(*prev_cloud, prev_origin, (origin - prev_origin), 
-                    this->train_params, (semantic_bki::ScanStep) scan_id);
+                    this->train_params);
         std::cout << "Inserted point cloud at " << scan_id << std::endl;
         std::cout << "Displacement between scans is:" << (origin - prev_origin) << std::endl;
         //std::string file_name = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
         //pcl::io::savePCDFileASCII(file_name, *cloud);
         if (query) {
           //for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id){
-          query_scan(input_data_dir, scan_id - 1, false); //only querying present frame
+          query_scan(input_data_dir, scan_id - 1, true); //only querying present frame
           //note, you were working with prev_cloud, so queried scan should be for the previous cloud
         }
 
