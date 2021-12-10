@@ -41,18 +41,21 @@ namespace semantic_bki {
          * @brief Constructors and destructor.
          */
         Semantics() : ms(std::vector<float>(num_class, prior)), state(State::UNKNOWN),
-                        flow(std::vector<float>(num_class, 0.0f)) { classified = false; 
-                                                                    ms[0] = 0.1; //set free space prior to 0.1
-                                                                    }
+                        flow(std::vector<float>(num_class, 0.0f)), prop(std::vector<float>(num_class, 0.0f))
+        {   
+            classified = false; 
+            ms[0] = 0.1; //set free space prior to 0.1
+        }
 
         Semantics(const Semantics &other) : ms(other.ms), state(other.state), 
-                            semantics(other.semantics), flow(other.flow) { }
+                            semantics(other.semantics), flow(other.flow), prop(other.prop) { }
 
         Semantics &operator=(const Semantics &other) {
           ms = other.ms;
           state = other.state;
           semantics = other.semantics;
           flow = other.flow;
+          prop = other.prop;
           return *this;
         }
 
@@ -68,7 +71,9 @@ namespace semantic_bki {
          *          free space samples or does not.
          */
         void update(const std::vector<float>& ybars,
-              const std::vector<float>& vbars, bool spatiotemporal,
+              const std::vector<float>& vbars, 
+              const std::vector<float>& pbars,
+              bool spatiotemporal,
               bool free_sample);
 
         void update(const std::vector<float>& ybars,
@@ -107,6 +112,7 @@ namespace semantic_bki {
         State state; // FREE, OCCUPIED OR UNKNOWN
         int semantics; // 0 if free
         std::vector<float> flow; // flow recorded for each class
+        std::vector<float> prop; //propagated points from previous step
         static int num_class;      // number of classes
 
         static float prior;  // prior on each class

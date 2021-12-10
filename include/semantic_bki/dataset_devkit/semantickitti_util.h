@@ -91,13 +91,14 @@ class SemanticKITTIData {
                 get_one_scan(input_data_dir, input_label_dir, scan_id, origin);
 	      map_->insert_pointcloud(*prev_cloud, prev_origin, (origin - prev_origin), 
                     this->train_params);
-        std::cout << "Inserted point cloud at " << scan_id << std::endl;
+        std::cout << "Inserted point cloud # " << scan_id << std::endl;
         std::cout << "Displacement between scans is:" << (origin - prev_origin) << std::endl;
+        
         //std::string file_name = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
         //pcl::io::savePCDFileASCII(file_name, *cloud);
         if (query) {
           //for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id){
-          query_scan(input_data_dir, scan_id - 1, true); //only querying present frame
+          query_scan(input_data_dir, scan_id - 1, false); //only querying present frame
           //note, you were working with prev_cloud, so queried scan should be for the previous cloud
         }
 
@@ -158,7 +159,7 @@ class SemanticKITTIData {
         result_file << gt_ll << " " << pred_label << "\n";
         if (get_vels){
           if (gt_ll > 19) //hardcoded
-            gt_ll = remap_dynamics.find(gt_ll)->second;
+            gt_ll = remap_dynamics[gt_ll];
           flow_file << node.get_flow(pred_label) << " " << node.get_flow(gt_ll) << "\n"; 
         }
       }
@@ -183,7 +184,7 @@ class SemanticKITTIData {
     std::string evaluation_result_dir_;
     Eigen::Matrix4d init_trans_to_ground_;
     Eigen::Matrix4d calibration;
-    std::map<int, int> remap_dynamics;
+    std::unordered_map<int, int> remap_dynamics;
 
     void init_remap_dynamics(){
       remap_dynamics[20] = 1;

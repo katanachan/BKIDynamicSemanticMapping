@@ -90,7 +90,6 @@ namespace semantic_bki {
         SemanticOcTreeNode::free_thresh = free_thresh;
         SemanticOcTreeNode::occupied_thresh = occupied_thresh;
 
-        is_dynamic = std::vector<bool> (num_class, false);
         //is_dynamic[0] = true; // free space needs to be decayed as well
         for (auto const &dyn_idx: dynamic_in)
             is_dynamic[dyn_idx] = true;
@@ -130,10 +129,9 @@ namespace semantic_bki {
 
         ////////// Preparation //////////////////////////
         /////////////////////////////////////////////////
-        GPPointCloud xy;
+        GPPointCloud xy, pred_xy;
         get_training_data(cloud, origin, train_params, xy);
-        double robot_motion = displacement.norm();
-        double train_flow;
+        
 #ifdef DEBUG
         Debug_Msg("Training data size: " << xy.size());
 #endif
@@ -165,20 +163,22 @@ namespace semantic_bki {
         for (int i = 0; i < blocks.size(); ++i) {
             BlockHashKey key = blocks[i];
             ExtendedBlock eblock = get_extended_block(key);
-            if (has_gp_points_in_bbox(eblock))
+            if (has_gp_points_in_bbox(eblock)) //if points exist in surrounding voxels
 #ifdef OPENMP
 #pragma omp critical
 #endif
             {
-                test_blocks.push_back(key);
+                test_blocks.push_back(key); //add block as a query point
             };
 
             GPPointCloud block_xy;
-            get_gp_points_in_bbox(key, block_xy);
+            get_gp_points_in_bbox(key, block_xy); //get all the points within the extended block
             if (block_xy.size() < 1)
                 continue;
 
             vector<float> block_x, block_v, block_y;
+
+            vector<float> block_xpred, block_ypred;
             
             for (auto it = block_xy.cbegin(); it != block_xy.cend(); ++it) {
                 block_x.push_back(it->first.x());
@@ -188,19 +188,33 @@ namespace semantic_bki {
                 // std::cout << " Before flow3f vec: " <<  it->first << std::endl;
                 // std::cout << "After flow vec: "  << it->first - displacement << std::endl;
 
-                train_flow = (it->first).flow_norm();
                 block_v.push_back(it->first.vx());// - displacement.x());
                 block_v.push_back(it->first.vy());// - displacement.y());
                 block_v.push_back(it->first.vz());// - displacement.z());    
 
-                block_y.push_back(it->second); //label           
+                int label = it->second;
+                block_y.push_back(label); //label
+
+
+                if (is_dynamic[label]){
+                    block_xpred.push_back(it->first.x() + it->first.vx());
+                    block_xpred.push_back(it->first.y() + it->first.vy());
+                    block_xpred.push_back(it->first.z() + it->first.vz());
+                    block_ypred.push_back(label);
+                }
+
+                
+
             
             }
 
             SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, 
                                                    SemanticOcTreeNode::kp, is_dynamic);
             bgk->train(block_x, block_y);
-            bgk->store_flow(block_v);
+            if (block_ypred.size() > 0)
+                clean_next.push_back(key); //save all the blocks with dynamic points
+
+            bgk->propagate(block_xpred, block_ypred, block_v);
 #ifdef OPENMP
 #pragma omp critical
 #endif
@@ -244,15 +258,15 @@ namespace semantic_bki {
                 if (bgk == bgk_arr.end())
                     continue;
 
-               	vector<vector<float>> ybars, vbars;
-		            bgk->second->predict(xs, ybars, vbars);
+               	vector<vector<float>> ybars, vbars, pbars;
+		        bgk->second->predict(xs, ybars, vbars, pbars);
 
                 int j = 0;
                 for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it, ++j) {
                     SemanticOcTreeNode &node = leaf_it.get_node();
                     // Only need to update if kernel density total kernel density est > 0
                     //if (kbar[j] > 0.0)
-                    node.update(ybars[j], vbars[j], spatiotemporal, free_sample);
+                    node.update(ybars[j], vbars[j], pbars[j], spatiotemporal, free_sample);
                     // node.update(ybars[j], vbars[j], create_id - block->created_at);
                     // block->created_at = create_id;
                 }

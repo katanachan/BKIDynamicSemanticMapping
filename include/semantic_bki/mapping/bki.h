@@ -19,11 +19,20 @@ namespace semantic_bki {
         using MatrixDKType = Eigen::Matrix<T, -1, 1>;
         using MatrixYType = Eigen::Matrix<T, -1, 1>;
 
-        SemanticBKInference(int nc, bool temporal_in, KernelParams &params, std::vector<bool> dynamic_in) : 
+        SemanticBKInference(int nc, bool temporal_in, KernelParams &params, std::unordered_map<int, bool> dynamic_in) : 
                             nc(nc), sf2(params.sf2), 
                             ell(params.ell), flow_ell(params.flow_ell),
                             flow_sf2(params.flow_sf2), m_resol(params.m_resol), temporal(temporal_in),
-                            dynamic(dynamic_in), trained(false) { }
+                            trained(false), prop(false) {
+
+            dynamic.resize(nc);
+            for (int i = 0; i < nc; ++i){
+              if (dynamic_in[i])
+                dynamic[i] = true;
+              else
+                dynamic[i] = false;
+            }
+        }
 
         /*
          * @brief Fit BGK Model
@@ -31,7 +40,7 @@ namespace semantic_bki {
          * @param y target vector (N)
          */
         void train(const std::vector<T> &x, const std::vector<T> &y) {
-            assert(x.size() % dim == 0 && (int) (x.size() / dim) == y.size());
+            //assert(x.size() % dim == 0 && (int) (x.size() / dim) == y.size());
             MatrixXType _x = Eigen::Map<const MatrixXType>(x.data(), x.size() / dim, dim);
             MatrixYType _y = Eigen::Map<const MatrixYType>(y.data(), y.size(), 1);
             this->y_vec = y;
@@ -57,14 +66,49 @@ namespace semantic_bki {
             this->v = Eigen::Map<const MatrixXType> (v.data(), v.size() / dim, dim);
             //stored as Nx3 matrix
         }
-       
+
+      /*
+      * \brief A function to store predictions for where dynamic objects will be
+              and to store flow
+      */
+
+      void propagate(const std::vector<T> &x_in, const std::vector<T> &y_in, const std::vector<T> &v_in){
+        this->v = Eigen::Map<const MatrixXType> (v_in.data(), v_in.size() / dim, dim);
+        this->xprop = Eigen::Map<const MatrixXType>(x_in.data(), x_in.size() / dim, dim);
+        this->yprop = y_in;
+        if (this->yprop.size() > 1)
+          prop = true;
+      }
+
+      
+      /***
+       * A function to update each query point in the vector xs with how much 
+       * 1. semantic information has been received for the posterior update (ybars)
+       * 2. velocity information has been received for the prediction step (vbars)
+      ***/ 
       void predict(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
-                    std::vector<std::vector<T>> &vbars) {
-          assert(xs.size() % dim == 0);
+                    std::vector<std::vector<T>> &vbars, std::vector<std::vector<T>> &pbars) {
+          //assert(xs.size() % dim == 0);
+          
+          
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
-          assert(trained == true);
+          vbars.resize(_xs.rows()); //update velocity per query point
+          ybars.resize(_xs.rows()); //update semantics per query point
+          pbars.resize(_xs.rows());
+
+          
+          //update this information from each class
+          for (int r = 0; r < _xs.rows(); ++r){
+            ybars[r].resize(nc); 
+            vbars[r].resize(nc);
+            pbars[r].resize(nc, 0);
+          }
+          //assert(trained == true);
           MatrixKType Ks, Kv, Ki;
+          
           covSparse(_xs, x, Ks);
+          if (temporal && prop)
+            propagate(_xs, pbars);
           
           if (temporal){
            //Shwarya : TODO you can do the same and compute a velocity covariance
@@ -76,17 +120,11 @@ namespace semantic_bki {
             //covCountingSensorModel(_xs, x, Ki);
             //covGaussian(_xs, x, Kv);
           }
-          vbars.resize(_xs.rows());
-
-          ybars.resize(_xs.rows());
-
-          for (int r = 0; r < _xs.rows(); ++r){
-            ybars[r].resize(nc);
-            vbars[r].resize(nc);
-          }
+          
 
           MatrixYType _y_vec = Eigen::Map<const MatrixYType>(y_vec.data(), y_vec.size(), 1);
           MatrixXType _v_vec = Eigen::Map<const MatrixXType>(v.data(), v.size() / dim, dim);
+
           /***
            * This block of code essentially copies over the velocities of each training point
            * to _v_vec
@@ -97,7 +135,7 @@ namespace semantic_bki {
               for (int i = 0; i < y_vec.size(); ++i) { //iterate through all the labels 
               //std::cout << v.row(i).norm() << '\n';
                 if (y_vec[i] == k){ //if the label class matches a valid class
-                  _y_vec(i, 0) = 1; 
+                  _y_vec(i, 0) = 1;
 
                   if (temporal)
                     _v_vec(i, 0) = v.row(i).norm(); //store the norm of velocity for that label
@@ -146,7 +184,9 @@ namespace semantic_bki {
                 if (temporal){
                   if (dynamic[k]){
                     vbars[r][k] = _vbar(r, 0) / _y_vec.size();
-                    // std::cout << k << std::endl;
+                    // if (vbars[r][k] > 0)
+                    //   std::cout << k << " " << vbars[r][k] << '\n';
+                    // // std::cout << k << std::endl;
                   }
                    else
                      vbars[r][k] = vbars[r][0]; //Store the dynamic velocity observed to deplete static and free classes
@@ -160,6 +200,8 @@ namespace semantic_bki {
 
               
           }
+
+          
       }
 
       void predict_csm(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
@@ -206,6 +248,7 @@ namespace semantic_bki {
 
         
     private:
+
         /*
          * @brief Compute Euclid distances between two vectors.
          * @param x input vector
@@ -305,6 +348,33 @@ namespace semantic_bki {
           Kxz = MatrixKType::Ones(x.rows(), z.rows());
         }
 
+        void propagate(const MatrixXType &xq, std::vector<std::vector<T>> &pbars){
+          MatrixKType Kprop;
+          covSparse(xq, this->xprop, Kprop, 2*m_resol, 500);
+
+          MatrixYType _p_vec = Eigen::Map<const MatrixYType>(yprop.data(), yprop.size(), 1);
+          for (int k = 0; k < nc; ++k){
+      
+            for (int i = 0; i < yprop.size(); ++i){
+              if (yprop[i] == k) //if the label class matches a valid class
+                _p_vec(i, 0) = 1;
+              else
+                _p_vec(i, 0) = 0;
+            }
+
+            MatrixYType _pbar; 
+            _pbar = Kprop * _p_vec;
+
+            
+            for (int r = 0; r < _pbar.rows(); ++r)
+              pbars[r][k] = _pbar(r, 0);
+            
+          }
+        }
+        
+        
+
+
         T flow_sf2; //vel kernel signal variance
         T flow_ell; //vel kernel length-scale
         T m_resol; //map resolution
@@ -319,10 +389,15 @@ namespace semantic_bki {
         MatrixYType y;   // temporary storage of training labels
         //MatrixYType v; // temporary storage for flow of training data
         MatrixXType v;
+
+        MatrixXType xprop; //temporary storage of propagated points
+        
         std::vector<T> y_vec;
-        const std::vector<bool> dynamic; // a vector of the size nc that denotes whether a class is likely to be dynamic
+        std::vector<T> yprop;
+        std::vector<bool> dynamic; // a vector of the size nc that denotes whether a class is likely to be dynamic
 
         bool trained;    // true if bgkinference stored training data
+        bool prop;
     };
 
     typedef SemanticBKInference<3, float> SemanticBKI3f;

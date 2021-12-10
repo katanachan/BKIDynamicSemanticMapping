@@ -36,9 +36,9 @@ namespace semantic_bki {
     }
 
     void Semantics::update(const std::vector<float>& ybars,
-                  const std::vector<float> &vbars, bool spatiotemporal, 
-                  bool free_sample) {
-      assert(ybars.size() == num_class && vbars.size() == num_class);
+                  const std::vector<float> &vbars, const std::vector<float> &pbars, 
+                  bool spatiotemporal, bool free_sample) {
+      //assert(pbars.size() == num_class && vbars.size() == num_class);
       classified = true;
       float removed_alpha = 0;
       if (!free_sample)
@@ -47,8 +47,10 @@ namespace semantic_bki {
       for (int i = 0; i < num_class; ++i){
         if (spatiotemporal){
             removed_alpha = exp(-flow[i] * flow[i]) * ms[i]; //decay prior (prediction step)
-            ms[i] = removed_alpha + ybars[i]; //add new observations (update step)
+            //ms[i] = removed_alpha + ybars[i]; //add new observations (update step)
+            ms[i] = removed_alpha + ybars[i] + prop[i];
             flow[i] = gamma * vbars[i] + (1 - gamma) * flow[i]; //update flow for the next time step
+            prop[i] = pbars[i];
         }
         else
           ms[i] += ybars[i]; // static mapping: so just add new observations
@@ -97,12 +99,5 @@ namespace semantic_bki {
         state = State::FREE;
       else
         state = State::OCCUPIED;
-    }
-
-    void Semantics::pred_post_update(const ScanStep scan_difference){
-      if (classified){
-        for (auto &m: ms)
-          m+=(float)scan_difference;
-      }
     }
 }

@@ -132,9 +132,12 @@ namespace semantic_bki {
           color.b = 75.0 / 255;
           break;
         case 12: // other-ground (purple)
-          color.r = 75.0 / 255;
-          color.g = 0;
-          color.b = 175.0 / 255;
+          // color.r = 75.0 / 255;
+          // color.g = 0;
+          // color.b = 175.0 / 255;
+          color.r = 0.0;
+          color.g = 0.0;
+          color.b = 0.0;
           break;
         case 13: // building (light blue)
           color.r = 0;
@@ -174,7 +177,7 @@ namespace semantic_bki {
         case 20: //moving-car (yellow)
           color.r = 1.;
           color.g = 1.;
-          color.b = 0.;
+          color.b = 1.;
           break;
         
         case 21: //moving-bicyclist (yellow-green)

@@ -436,8 +436,9 @@ namespace semantic_bki {
         MyRTree rtree;
         //Added by Shwarya
         bool spatiotemporal; //spatial mapping if false, spatiotemporal if true
-        std::vector<bool> is_dynamic;
+        std::unordered_map<int, bool> is_dynamic; //table to store if class is dynamic or not
         bool free_sample; //indicate if there are free space samples in the data with true 
+        std::vector<BlockHashKey> clean_next;
     };
 
 }
