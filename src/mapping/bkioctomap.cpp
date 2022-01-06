@@ -120,6 +120,20 @@ namespace semantic_bki {
         Block::key_loc_map = init_key_loc_map(resolution, block_depth);
     }
 
+    void SemanticBKIOctoMap::clean_up_dynamics(){
+        for (const auto &key: clean_next){
+            Block *block = block_arr[key]; //get the associated block
+
+            for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it) {
+                SemanticOcTreeNode &node = leaf_it.get_node();
+                node.decay(spatiotemporal, free_sample);
+            }
+
+        }
+        if (clean_next.size() > 0)
+            clean_next.clear();
+    }
+
     void SemanticBKIOctoMap::insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
                                                 const PCParams *train_params) {
 
@@ -151,14 +165,16 @@ namespace semantic_bki {
             float p[] = {it->first.x(), it->first.y(), it->first.z()};
             rtree.Insert(p, p, const_cast<GPPointType *>(&*it));
         }
+        std::cout << "I am training\n";
+            
         /////////////////////////////////////////////////
 
         ////////// Training /////////////////////////////
         /////////////////////////////////////////////////
         vector<BlockHashKey> test_blocks;
-        std::unordered_map<BlockHashKey, SemanticBKI3f *> bgk_arr;
+        std::unordered_map<BlockHashKey, SemanticBKI3f*> bgk_arr;
 #ifdef OPENMP
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(auto)
 #endif
         for (int i = 0; i < blocks.size(); ++i) {
             BlockHashKey key = blocks[i];
@@ -178,7 +194,7 @@ namespace semantic_bki {
 
             vector<float> block_x, block_v, block_y;
 
-            vector<float> block_xpred, block_ypred;
+            vector<float> block_xpred, block_ypred; //save the points predicted by scene flow
             
             for (auto it = block_xy.cbegin(); it != block_xy.cend(); ++it) {
                 block_x.push_back(it->first.x());
@@ -194,19 +210,16 @@ namespace semantic_bki {
 
                 int label = it->second;
                 block_y.push_back(label); //label
-
-
-                if (is_dynamic[label]){
+                auto prop_it = is_dynamic.find(label);
+                if (prop_it != is_dynamic.end()){
                     block_xpred.push_back(it->first.x() + it->first.vx());
                     block_xpred.push_back(it->first.y() + it->first.vy());
                     block_xpred.push_back(it->first.z() + it->first.vz());
                     block_ypred.push_back(label);
                 }
-
-                
-
             
             }
+
 
             SemanticBKI3f *bgk = new SemanticBKI3f(SemanticOcTreeNode::num_class, spatiotemporal, 
                                                    SemanticOcTreeNode::kp, is_dynamic);
@@ -222,6 +235,8 @@ namespace semantic_bki {
                 bgk_arr.emplace(key, bgk);
             };
         }
+
+        std::cout << "I am testing\n";
 #ifdef DEBUG
         Debug_Msg("Training done");
         Debug_Msg("Prediction: block number: " << test_blocks.size());
@@ -233,6 +248,8 @@ namespace semantic_bki {
 #ifdef OPENMP
 #pragma omp parallel for schedule(dynamic)
 #endif
+
+        
         for (int i = 0; i < test_blocks.size(); ++i) {
             BlockHashKey key = test_blocks[i];
 #ifdef OPENMP
@@ -243,6 +260,8 @@ namespace semantic_bki {
                     block_arr.emplace(key, new Block(hash_key_to_block(key)));
             };
             Block *block = block_arr[key];
+            
+            //get all query points within the block (this order is re-used again later)
             vector<float> xs;
             for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it) {
                 point3f p = block->get_loc(leaf_it);
@@ -250,26 +269,32 @@ namespace semantic_bki {
                 xs.push_back(p.y());
                 xs.push_back(p.z());
             }
-            //std::cout << "xs size: "<<xs.size() << std::endl;
 
+            //prepare vectors to keep track of how each of the query points are affected by
+            //points present in a block within the extended block | e1 | q | e2 |
+            vector<vector<float>> vbars(xs.size() / 3, vector<float> (SemanticOcTreeNode::num_class, 0));
+            vector<vector<float>> pbars = vbars;
+            vector<vector<float>> ybars = vbars; 
+
+            //get all the surrounding blocks (extended block) that affect our query points and iterate through them
             ExtendedBlock eblock = block->get_extended_block();
+            
+
             for (auto block_it = eblock.cbegin(); block_it != eblock.cend(); ++block_it) {
                 auto bgk = bgk_arr.find(*block_it);
                 if (bgk == bgk_arr.end())
                     continue;
 
-               	vector<vector<float>> ybars, vbars, pbars;
-		        bgk->second->predict(xs, ybars, vbars, pbars);
+		        bgk->second->predict(xs, ybars, vbars, pbars); //predict how the points in the "extended block" affect the query points
 
-                int j = 0;
-                for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it, ++j) {
-                    SemanticOcTreeNode &node = leaf_it.get_node();
-                    // Only need to update if kernel density total kernel density est > 0
-                    //if (kbar[j] > 0.0)
-                    node.update(ybars[j], vbars[j], pbars[j], spatiotemporal, free_sample);
-                    // node.update(ybars[j], vbars[j], create_id - block->created_at);
-                    // block->created_at = create_id;
-                }
+            }
+
+            int j = 0; //indexes query point within the block
+            for (auto leaf_it = block->begin_leaf(); leaf_it != block->end_leaf(); ++leaf_it, ++j) {
+                SemanticOcTreeNode &node = leaf_it.get_node();
+                // Only need to update if kernel density total kernel density est > 0
+                //if (kbar[j] > 0.0)
+                node.update(ybars[j], vbars[j], pbars[j], spatiotemporal, free_sample);
             }
         }
 #ifdef DEBUG
@@ -512,6 +537,57 @@ namespace semantic_bki {
 
     SemanticOcTreeNode SemanticBKIOctoMap::search(float x, float y, float z) const {
         return search(point3f(x, y, z));
+    }
+
+    SemanticOcTreeNode SemanticBKIOctoMap::nearest_neighbor(const float x, const float y, const float z) const{
+        return nearest_neighbor(point3f(x, y, z));
+    }
+
+    SemanticOcTreeNode SemanticBKIOctoMap::nearest_neighbor(point3f p) const{
+        BlockHashKey key = block_to_hash_key(p); //get the block the point could fall in
+        Block *block = search(key);
+        if (block != nullptr)
+            return SemanticOcTreeNode(block->search(p));
+        else{
+
+        //TODO: if the block exists, no need to go into extended block!!!!! 
+        //done
+            ExtendedBlock neighbours = get_extended_block(key);//get all the hashkeys from the extended block (array of HashKeys)
+
+            std::priority_queue<OrderedHash, 
+                            std::vector<OrderedHash>, 
+                            std::less<OrderedHash> > ordering; //ordering of blocks according to minimum distance
+        
+
+            for (auto it = neighbours.cbegin(); it != neighbours.cend(); ++it) {
+                //check if the block exists by inputting hash key
+                Block *block_in_eblock = search(*it);
+
+                if (block_in_eblock != nullptr){ //if a block exists
+                    //get associated center to the block
+                    point3f center = hash_key_to_block(*it); //need to keep keys to get back the center
+                    double dist = (center - p).norm(); //get distance of center of block to query point
+                    ordering.emplace(dist, *it); //add to priority queue
+                }             
+            }
+
+            if (!ordering.empty()){
+                BlockHashKey foundKey = ordering.top().second;
+                Block *nearest_block = search(foundKey);
+                return SemanticOcTreeNode(nearest_block->search(p));            
+            }
+            else{
+                return SemanticOcTreeNode();
+            }
+        }
+
+        //TODO: should be storing pointers to the found block instead of doing the process one more time
+        //NO
+        //TODO: also, change the priority type from float to double
+        //DONE
+        //TODO: return SemanticOcTree search option
+
+        //GOOD JOB LOL
     }
 
 

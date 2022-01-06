@@ -87,7 +87,7 @@ namespace semantic_bki {
           color.b = 100.0 / 255;
           break;
         case 3:  // motorcycle (dark-brown-ish)
-          color.r = 150.0 / 255;
+          color.r = 150.0 / 255; //150
           color.g = 60.0 / 255;
           color.b = 30.0 / 255;
           break;
@@ -122,9 +122,12 @@ namespace semantic_bki {
           color.b = 1;
           break;
         case 10: // parking (light pink)
-          color.r = 1;
-          color.g = 150.0 / 255;
-          color.b = 1;
+          // color.r = 1;
+          // color.g = 150.0 / 255;
+          // color.b = 1;
+          color.r = 0;
+          color.g = 0;
+          color.b = 0;
           break;
         case 11: // sidewalk (plum)
           color.r = 75.0 / 255;
@@ -132,12 +135,12 @@ namespace semantic_bki {
           color.b = 75.0 / 255;
           break;
         case 12: // other-ground (purple)
-          // color.r = 75.0 / 255;
-          // color.g = 0;
-          // color.b = 175.0 / 255;
-          color.r = 0.0;
-          color.g = 0.0;
-          color.b = 0.0;
+          color.r = 75.0 / 255;
+          color.g = 0;
+          color.b = 175.0 / 255;
+          // color.r = 0.0;
+          // color.g = 0.0;
+          // color.b = 0.0;
           break;
         case 13: // building (light blue)
           color.r = 0;

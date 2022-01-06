@@ -40,14 +40,13 @@ namespace semantic_bki {
         /*
          * @brief Constructors and destructor.
          */
-        Semantics() : ms(std::vector<float>(num_class, prior)), state(State::UNKNOWN),
+        Semantics() : ms(std::vector<float>(num_class, prior)), state(State::UNKNOWN), decayed(false),
                         flow(std::vector<float>(num_class, 0.0f)), prop(std::vector<float>(num_class, 0.0f))
         {   
-            classified = false; 
             ms[0] = 0.1; //set free space prior to 0.1
         }
 
-        Semantics(const Semantics &other) : ms(other.ms), state(other.state), 
+        Semantics(const Semantics &other) : ms(other.ms), state(other.state), decayed(other.decayed),
                             semantics(other.semantics), flow(other.flow), prop(other.prop) { }
 
         Semantics &operator=(const Semantics &other) {
@@ -76,9 +75,12 @@ namespace semantic_bki {
               bool spatiotemporal,
               bool free_sample);
 
-        void update(const std::vector<float>& ybars,
-                  const std::vector<float> &vbars,
-                  const ScanStep time_diff);
+        /*
+        * @brief A function to decay the cell with velocity stored in the previous
+        *        time step
+        */
+
+        void decay(bool spatiotemporal, bool free_sample);
 
         /// Get probability of occupancy.
         void get_probs(std::vector<float>& probs) const;
@@ -98,14 +100,6 @@ namespace semantic_bki {
 
         inline int get_semantics() const { return semantics; }
 
-        bool classified;
-
-        /*
-        * @brief Add x number of observations per semantic category
-        * @argument ScanStep scan_difference is the number of scans that have
-        * been taken since the first time the OctreeNode was observed
-        */
-       void pred_post_update(const ScanStep scan_difference);
 
     private:
         std::vector<float> ms; // concentration parameters
@@ -124,6 +118,7 @@ namespace semantic_bki {
         static float occupied_thresh; // OCCUPIED occupancy threshold
 
         static float gamma; //parameter for how flow is smoothed with M.A.
+        bool decayed;
 
     };
 

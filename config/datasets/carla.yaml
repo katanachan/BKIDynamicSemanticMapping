@@ -1,0 +1,37 @@
+# rellis_0x config
+
+# Map information
+resolution: 0.3
+num_class: 22 # Number of classes
+
+# #Kernel length scale
+ell: 0.4 #0.8
+#sf2: 10 #default
+
+# Sampling resolutions
+free_resolution: 100 # Free space sampling resolution
+ds_resolution: 0.1 # Downsampling factor
+#prior: 0.0
+# Information about range-finder data
+scan_num: 100 # How many scans to use
+max_range: -1 # Sensor max range (m)
+
+# Dataset information
+input_data_prefix: velodyne/
+input_label_prefix: predictions/
+lidar_pose_file: poses.txt
+gt_label_prefix: labels/
+evaluation_result_prefix: evaluation/
+query: true
+visualize: true
+spatiotemporal: false
+free_sample: false
+
+#Dynamic class information
+moving_classes: [4, 10, 20]
+
+#Flow kernel
+flow_ell: 2.5 #0.2
+flow_sf2: 1000
+
+sequence_no : -1

@@ -35,18 +35,32 @@ namespace semantic_bki {
         vars[i] = ((ms[i] / sum) - (ms[i] / sum) * (ms[i] / sum)) / (sum + 1);
     }
 
+    void Semantics::decay(bool spatiotemporal, bool free_sample){
+      if (!free_sample)
+        flow[0] = 0;
+      
+      for (int i = 0; i < num_class; ++i){
+        if (spatiotemporal)
+            ms[i] = exp(-flow[i] * flow[i]) * ms[i];
+      }
+
+      decayed = true;
+    }
+
     void Semantics::update(const std::vector<float>& ybars,
                   const std::vector<float> &vbars, const std::vector<float> &pbars, 
                   bool spatiotemporal, bool free_sample) {
       //assert(pbars.size() == num_class && vbars.size() == num_class);
-      classified = true;
       float removed_alpha = 0;
       if (!free_sample)
         flow[0] = 0;
 
       for (int i = 0; i < num_class; ++i){
         if (spatiotemporal){
-            removed_alpha = exp(-flow[i] * flow[i]) * ms[i]; //decay prior (prediction step)
+            if (!decayed)
+              removed_alpha = exp(-flow[i] * flow[i]) * ms[i]; //decay prior (prediction step)
+            else
+              removed_alpha = ms[i];
             //ms[i] = removed_alpha + ybars[i]; //add new observations (update step)
             ms[i] = removed_alpha + ybars[i] + prop[i];
             flow[i] = gamma * vbars[i] + (1 - gamma) * flow[i]; //update flow for the next time step
@@ -65,39 +79,8 @@ namespace semantic_bki {
         state = State::FREE;
       else
         state = State::OCCUPIED;
+
+      decayed = false; //reset decayed
     }
-    
 
-
-    void Semantics::update(const std::vector<float>& ybars,
-                  const std::vector<float> &vbars,
-                  const ScanStep time_diff) {
-      assert(ybars.size() == num_class && vbars.size() == num_class);
-      classified = true;
-
-      
-      for (int i = 0; i < num_class; ++i){
-        //original
-        //ms[i] += ybars[i];
-        // // //current
-        // flow[i] = vbars[i];
-        // ms[i] =  exp( -flow[i] * flow[i]) /// (1 - probs[i])) 
-        //     * ms[i] +  ybars[i];
-        // // // //before
-        ms[i] =  exp( -flow[i] * flow[i] * time_diff ) // / (1 - probs[i]))
-                    * ms[i] +  ybars[i];
-        flow[i] = vbars[i]; 
-        //std::cout << exp( -flow[i] * flow[i]) << std::endl;
-      }
-
-      std::vector<float> probs(num_class);
-      get_probs(probs);
-
-      semantics = std::distance(probs.begin(), std::max_element(probs.begin(), probs.end()));
-
-      if (semantics == 0)
-        state = State::FREE;
-      else
-        state = State::OCCUPIED;
-    }
 }

@@ -89,16 +89,25 @@ class SemanticKITTIData {
 	 
 	      semantic_bki::PCLPointCloud::Ptr cloud = 
                 get_one_scan(input_data_dir, input_label_dir, scan_id, origin);
+        //clean up cells where dynamic objects were detected i.e. prediction step
+        map_->clean_up_dynamics();
+        std::cout << "Inserting point cloud # " << scan_id << std::endl;
 	      map_->insert_pointcloud(*prev_cloud, prev_origin, (origin - prev_origin), 
                     this->train_params);
-        std::cout << "Inserted point cloud # " << scan_id << std::endl;
-        std::cout << "Displacement between scans is:" << (origin - prev_origin) << std::endl;
         
+        std::cout << "Displacement between scans is:" << (origin - prev_origin) << std::endl;
+
+        
+
         //std::string file_name = input_data_dir + "semantic_kitti_" + std::to_string(scan_id) + ".pcd";
         //pcl::io::savePCDFileASCII(file_name, *cloud);
         if (query) {
           //for (int query_id = scan_id - 10; query_id >= 0 && query_id <= scan_id; ++query_id){
-          query_scan(input_data_dir, scan_id - 1, false); //only querying present frame
+          //query_scan(input_data_dir, scan_id - 1, false); //only querying present frame
+          std::cout << "Evaluating accuracy for scan # " << (scan_id - 1) << '\n';
+          query_map_accuracy(scan_id - 1);
+          std::cout << "Evaluating completeness for scan # " << (scan_id - 1) << '\n';
+          query_map_completeness(scan_id - 1);
           //note, you were working with prev_cloud, so queried scan should be for the previous cloud
         }
 
@@ -129,6 +138,108 @@ class SemanticKITTIData {
       gt_label_dir_ = gt_label_dir;
       evaluation_result_dir_ = evaluation_result_dir;
     }
+
+    void query_map_completeness(const int scan_id){
+      char scan_id_c[256];
+      sprintf(scan_id_c, "%06d", scan_id);
+      Eigen::Matrix4d transform = lidar_poses_[scan_id]; //get poses
+      Eigen::Matrix4d new_transform = init_trans_to_ground_ * transform * calibration; //get transformation ready
+
+      //visible portion
+      std::string map_name_v = evaluation_result_dir_ + "completeness/visible/" + std::string(scan_id_c) + ".bin";
+      std::string gt_name_v = evaluation_result_dir_ + "completeness/visible/" + std::string(scan_id_c) + ".label";
+      pcl::PointCloud<pcl::PointXYZL>::Ptr cloud_v = voxel2pcl(map_name_v, gt_name_v);
+      pcl::transformPointCloud(*cloud_v, *cloud_v, new_transform);
+
+      //occluded portion
+      std::string map_name_o = evaluation_result_dir_ + "completeness/occluded/" + std::string(scan_id_c) + ".bin";
+      std::string gt_name_o = evaluation_result_dir_ + "completeness/occluded/" + std::string(scan_id_c) + ".label";
+      pcl::PointCloud<pcl::PointXYZL>::Ptr cloud_o = voxel2pcl(map_name_o, gt_name_o);
+      pcl::transformPointCloud(*cloud_o, *cloud_o, new_transform);
+
+      //get results file ready
+      std::string result_name_v = evaluation_result_dir_ + "completeness/visible/" + std::string(scan_id_c) + ".txt";
+      std::ofstream result_file_v;
+      result_file_v.open(result_name_v);
+
+      for (int i=0; i < cloud_v->points.size(); ++i){
+        
+        semantic_bki::SemanticOcTreeNode node = map_->nearest_neighbor(cloud_v->points[i].x, 
+                                                cloud_v->points[i].y, cloud_v->points[i].z); //nearest neighbour
+        int pred_label = -1;
+        int gt_ll = cloud_v->points[i].label;
+	      if (node.get_state() == semantic_bki::State::OCCUPIED || node.get_state() == semantic_bki::State::FREE)
+          pred_label = node.get_semantics();
+        result_file_v << gt_ll << " " << pred_label << "\n";
+      }
+
+      result_file_v.close();
+
+      std::string result_name_o = evaluation_result_dir_ + "completeness/occluded/" + std::string(scan_id_c) + ".txt";
+      std::ofstream result_file_o;
+      result_file_o.open(result_name_o);
+
+      for (int i=0; i < cloud_o->points.size(); ++i){
+        
+        semantic_bki::SemanticOcTreeNode node = map_->nearest_neighbor(cloud_o->points[i].x, 
+                                                cloud_o->points[i].y, cloud_o->points[i].z); //nearest neighbour
+        int pred_label = -1;
+        int gt_ll = cloud_o->points[i].label;
+	      if (node.get_state() == semantic_bki::State::OCCUPIED || node.get_state() == semantic_bki::State::FREE)
+          pred_label = node.get_semantics();
+        result_file_o << gt_ll << " " << pred_label << "\n";
+      }
+
+      result_file_o.close();
+    }
+
+
+
+    void query_map_accuracy(const int scan_id){
+      char scan_id_c[256];
+      sprintf(scan_id_c, "%06d", scan_id);
+      
+      std::string map_name = evaluation_result_dir_ + "accuracy/" + std::string(scan_id_c) + ".bin";
+      std::string gt_name = evaluation_result_dir_ + "accuracy/" + std::string(scan_id_c) + ".label";
+      std::string result_name = evaluation_result_dir_ + "accuracy/" + std::string(scan_id_c) + ".txt";
+
+      pcl::PointCloud<pcl::PointXYZL>::Ptr cloud = voxel2pcl(map_name, gt_name);
+      Eigen::Matrix4d transform = lidar_poses_[scan_id];
+
+      Eigen::Matrix4d new_transform = init_trans_to_ground_ * transform * calibration;
+      pcl::transformPointCloud (*cloud, *cloud, new_transform);
+
+      std::ofstream result_file;
+      result_file.open(result_name);
+
+      std::cout << "Querying " << cloud->points.size() << " # of points.\n";
+
+      for (int i = 0; i < cloud->points.size(); ++i) {
+        semantic_bki::SemanticOcTreeNode node = map_->search(cloud->points[i].x, cloud->points[i].y, cloud->points[i].z); //nearest neighbour
+        int pred_label = 0; 
+        int gt_ll = cloud->points[i].label;
+	      if (node.get_state() == semantic_bki::State::OCCUPIED)
+	        pred_label = node.get_semantics();
+        result_file << gt_ll << " " << pred_label << "\n";
+      }
+
+      result_file.close();
+
+    }
+
+    //write a function to find the nearest neighbour in the map
+    //1. if something doesn't exist with the search
+    //return the nearest neighbour
+
+    //2. search threshold can be map resolution?
+
+    //3. get the surrounding 8 neighbouring cells with their hashkey and search
+    //first, find the voxel it falls within
+    //second, get its centre and its neighbors
+    //third, order the voxel keys according to priority order based on distance from the query point
+
+    //once nearest cell is found?
+    //return the value of the cell
 
     void query_scan(const std::string &input_data_dir, const int scan_id, const bool get_vels) {
       char scan_id_c[256];
@@ -195,13 +306,6 @@ class SemanticKITTIData {
       remap_dynamics[25] = 4;
     }
 
-    int check_element_in_vector(const long long element, const std::vector<long long>& vec_check) {
-      for (int i = 0; i < vec_check.size(); ++i)
-        if (element == vec_check[i])
-          return i;
-      return -1;
-    }
-
     void init_calibration_matrix(){
       std::cout << "Initializing calibration matrix for sequence " << sequence <<std::endl;
       if (sequence == 0 || sequence == 1 || sequence == 2 || sequence >= 13)
@@ -258,7 +362,7 @@ class SemanticKITTIData {
       std::rewind(fp);
 
       int n_hits = sz / (sizeof(float) * 4);
-
+      std::cout << "Number of points found: " << n_hits << '\n';
       semantic_bki::PCLPointCloud::Ptr pc(new semantic_bki::PCLPointCloud);
       for (size_t i = 0; i < n_hits; i++){
         semantic_bki::PCLPointType point;
@@ -281,6 +385,37 @@ class SemanticKITTIData {
       return pc;    
     }
 
+    pcl::PointCloud<pcl::PointXYZL>::Ptr voxel2pcl(const std::string &fn, 
+                                                  const std::string &fn_label) {
+      FILE* fp_label = std::fopen(fn_label.c_str(), "r");
+      if (!fp_label) {
+        std::perror("File opening failed");
+      }
+      std::fseek(fp_label, 0L, SEEK_END);
+      std::rewind(fp_label);
+      FILE* fp = std::fopen(fn.c_str(), "r");
+      if (!fp) {
+        std::perror("File opening failed");
+      }
+      std::fseek(fp, 0L, SEEK_END);
+      size_t sz = std::ftell(fp);
+      std::rewind(fp);
+      int n_hits = sz / (sizeof(float) * 3);
+      
+      pcl::PointCloud<pcl::PointXYZL>::Ptr pc(new pcl::PointCloud<pcl::PointXYZL>);
+      for (int i = 0; i < n_hits; i++) {
+        pcl::PointXYZL point;
+        if (fread(&point.x, sizeof(float), 1, fp) == 0) break;
+        if (fread(&point.y, sizeof(float), 1, fp) == 0) break;
+        if (fread(&point.z, sizeof(float), 1, fp) == 0) break;
+        if (fread(&point.label, sizeof(float), 1, fp_label) == 0) break;
+        pc->push_back(point);
+      }
+      std::fclose(fp);
+      std::fclose(fp_label);
+      return pc;
+    }
+
     pcl::PointCloud<pcl::PointXYZL>::Ptr kitti2pcl(const std::string &fn, 
                                                   const std::string &fn_label) {
       FILE* fp_label = std::fopen(fn_label.c_str(), "r");
@@ -297,6 +432,7 @@ class SemanticKITTIData {
       size_t sz = std::ftell(fp);
       std::rewind(fp);
       int n_hits = sz / (sizeof(float) * 4);
+      
       pcl::PointCloud<pcl::PointXYZL>::Ptr pc(new pcl::PointCloud<pcl::PointXYZL>);
       for (int i = 0; i < n_hits; i++) {
         pcl::PointXYZL point;

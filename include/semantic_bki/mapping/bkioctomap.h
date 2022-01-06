@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 #include <vector>
-
+#include <queue>
 
 #include "rtree.h"
 #include "bkiblock.h"
@@ -70,6 +70,7 @@ namespace semantic_bki {
         typedef RTree<GPPointType *, float, 3, float> MyRTree; 
         //format is <data type, elem. type, dim. no., type for computation>
         //keep number of dimensions as 3
+        typedef std::pair<double, BlockHashKey> OrderedHash; //defined in bkiblock.h
 
 
     public:
@@ -134,6 +135,11 @@ namespace semantic_bki {
 
         void insert_pointcloud(const PCLPointCloud &cloud, const point3f &origin, const point3f &displacement,
                                 const PCParams *train_params);
+        /*
+        * @brief A function to predict in voxels that had observations in the previous time step
+        *
+        */
+        void clean_up_dynamics();
 
         //void insert_training_data(const GPPointCloud &cloud);
 
@@ -373,6 +379,10 @@ namespace semantic_bki {
 
         SemanticOcTreeNode search(float x, float y, float z) const;
 
+        SemanticOcTreeNode nearest_neighbor(point3f p) const;
+
+        SemanticOcTreeNode nearest_neighbor(float x, float y, float z) const;
+
         Block *search(BlockHashKey key) const;
 
         inline float get_block_size() const { return block_size; }
@@ -438,7 +448,7 @@ namespace semantic_bki {
         bool spatiotemporal; //spatial mapping if false, spatiotemporal if true
         std::unordered_map<int, bool> is_dynamic; //table to store if class is dynamic or not
         bool free_sample; //indicate if there are free space samples in the data with true 
-        std::vector<BlockHashKey> clean_next;
+        std::vector<BlockHashKey> clean_next; //list of blocks that contain dynamic points
     };
 
 }

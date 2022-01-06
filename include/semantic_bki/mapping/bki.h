@@ -76,8 +76,8 @@ namespace semantic_bki {
         this->v = Eigen::Map<const MatrixXType> (v_in.data(), v_in.size() / dim, dim);
         this->xprop = Eigen::Map<const MatrixXType>(x_in.data(), x_in.size() / dim, dim);
         this->yprop = y_in;
-        if (this->yprop.size() > 1)
-          prop = true;
+        // if (this->yprop.size() > 1)
+        //   prop = true;
       }
 
       
@@ -92,17 +92,13 @@ namespace semantic_bki {
           
           
           MatrixXType _xs = Eigen::Map<const MatrixXType>(xs.data(), xs.size() / dim, dim);
-          vbars.resize(_xs.rows()); //update velocity per query point
-          ybars.resize(_xs.rows()); //update semantics per query point
-          pbars.resize(_xs.rows());
-
+          //ybars.resize(_xs.rows()); //update semantics per query point
+          
           
           //update this information from each class
-          for (int r = 0; r < _xs.rows(); ++r){
-            ybars[r].resize(nc); 
-            vbars[r].resize(nc);
-            pbars[r].resize(nc, 0);
-          }
+          // for (int r = 0; r < _xs.rows(); ++r)
+          //   ybars[r].resize(nc);
+          
           //assert(trained == true);
           MatrixKType Ks, Kv, Ki;
           
@@ -180,28 +176,15 @@ namespace semantic_bki {
                ***/ 
             
               for (int r = 0; r < _ybar.rows(); ++r){
-                ybars[r][k] = _ybar(r, 0);
+                ybars[r][k] += _ybar(r, 0);
                 if (temporal){
-                  if (dynamic[k]){
-                    vbars[r][k] = _vbar(r, 0) / _y_vec.size();
-                    // if (vbars[r][k] > 0)
-                    //   std::cout << k << " " << vbars[r][k] << '\n';
-                    // // std::cout << k << std::endl;
-                  }
+                  if (dynamic[k])
+                    vbars[r][k] += (_vbar(r, 0) / _y_vec.size());
                    else
-                     vbars[r][k] = vbars[r][0]; //Store the dynamic velocity observed to deplete static and free classes
-                // if (k==2)
-                //   std::cout << vbars[r][k] << '\n';
-                  // if (vbars[r][k] > 0.5 && k != 0)
-                  // std::cout << "Velocity is:" << vbars[r][k] << std::endl;
+                     vbars[r][k] += vbars[r][0]; //Store the dynamic velocity observed to deplete static and free classes
                 }
-
-              }
-
-              
-          }
-
-          
+              }              
+          }          
       }
 
       void predict_csm(const std::vector<T> &xs, std::vector<std::vector<T>> &ybars,
@@ -367,7 +350,7 @@ namespace semantic_bki {
 
             
             for (int r = 0; r < _pbar.rows(); ++r)
-              pbars[r][k] = _pbar(r, 0);
+              pbars[r][k] += _pbar(r, 0);
             
           }
         }
